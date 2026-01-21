@@ -8,14 +8,56 @@
   </head>
   <body>
     <div class="hud">
-      <div class="title">Skate City Beer Run</div>
-      <div class="stats">
-        <span id="collected">0</span>/<span id="total">0</span> кружек
+      <div class="hud-top">
+        <div class="title">Skate City Beer Run</div>
+        <button id="muteToggle" class="icon-btn" aria-label="Sound toggle">
+          Sound
+        </button>
       </div>
-      <div class="controls">
-        Управление: ←/→ или A/D — ехать, ↑/W/Space — прыжок
+      <div class="stats-grid">
+        <div class="stat">
+          <span class="label">Level</span>
+          <span id="level">1</span>
+        </div>
+        <div class="stat">
+          <span class="label">Time</span>
+          <span id="time">0.0s</span>
+        </div>
+        <div class="stat">
+          <span class="label">Score</span>
+          <span id="score">0</span>
+        </div>
+        <div class="stat">
+          <span class="label">Mugs</span>
+          <span><span id="collected">0</span>/<span id="total">0</span></span>
+        </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <div class="controls">
+          Управление: ←/→ или A/D — ехать, ↑/W/Space — прыжок
+        </div>
       </div>
     </div>
+
+    <div id="overlay" class="center-overlay">
+      <div class="panel">
+        <h1>Skate City Beer Run</h1>
+        <p>Собери все кружки. Нажми, чтобы начать.</p>
+        <button id="startBtn" class="primary-btn">Start</button>
+      </div>
+    </div>
+
+    <div id="levelComplete" class="center-overlay hidden">
+      <div class="panel">
+        <h2>Level Complete</h2>
+        <p id="levelStats">Great ride.</p>
+        <button id="nextBtn" class="primary-btn">Next Level</button>
+      </div>
+    </div>
+
     <div class="touch-controls" aria-hidden="true">
       <button class="btn left" data-action="left">◀</button>
       <button class="btn right" data-action="right">▶</button>
