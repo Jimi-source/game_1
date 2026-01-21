@@ -45,3 +45,46 @@ canvas#game {
   height: 100vh;
   display: block;
 }
+
+.touch-controls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.btn {
+  position: absolute;
+  pointer-events: auto;
+  border: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.8);
+  color: #e2e8f0;
+  font-size: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.4);
+  touch-action: none;
+}
+
+.btn.left {
+  left: 20px;
+  bottom: 24px;
+}
+
+.btn.right {
+  left: 100px;
+  bottom: 24px;
+}
+
+.btn.jump {
+  right: 24px;
+  bottom: 24px;
+}
+
+@media (min-width: 900px) {
+  .touch-controls {
+    display: none;
+  }
+}

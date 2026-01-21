@@ -33,6 +33,11 @@ const GRAVITY = 0.7;
 const FRICTION = 0.85;
 
 const keys = new Set();
+const touchState = {
+  left: false,
+  right: false,
+  jump: false,
+};
 
 const beerMugs = [
   { x: 450, y: 0, collected: false },
@@ -174,10 +179,14 @@ function drawSkater() {
 }
 
 function updatePlayer() {
-  const moveLeft = keys.has("ArrowLeft") || keys.has("KeyA");
-  const moveRight = keys.has("ArrowRight") || keys.has("KeyD");
+  const moveLeft = keys.has("ArrowLeft") || keys.has("KeyA") || touchState.left;
+  const moveRight =
+    keys.has("ArrowRight") || keys.has("KeyD") || touchState.right;
   const jump =
-    keys.has("ArrowUp") || keys.has("KeyW") || keys.has("Space");
+    keys.has("ArrowUp") ||
+    keys.has("KeyW") ||
+    keys.has("Space") ||
+    touchState.jump;
 
   if (moveLeft) {
     PLAYER.vx -= PLAYER.speed;
@@ -291,11 +300,39 @@ window.addEventListener("keyup", (event) => {
 
 window.addEventListener("blur", () => {
   keys.clear();
+  touchState.left = false;
+  touchState.right = false;
+  touchState.jump = false;
 });
 
 window.addEventListener("resize", () => {
   resize();
   updateCamera();
+});
+
+function setTouch(action, isActive) {
+  if (action === "left") touchState.left = isActive;
+  if (action === "right") touchState.right = isActive;
+  if (action === "jump") touchState.jump = isActive;
+}
+
+document.querySelectorAll(".touch-controls .btn").forEach((btn) => {
+  const action = btn.dataset.action;
+  const start = (event) => {
+    event.preventDefault();
+    setTouch(action, true);
+  };
+  const end = (event) => {
+    event.preventDefault();
+    setTouch(action, false);
+  };
+
+  btn.addEventListener("touchstart", start, { passive: false });
+  btn.addEventListener("touchend", end, { passive: false });
+  btn.addEventListener("touchcancel", end, { passive: false });
+  btn.addEventListener("mousedown", start);
+  btn.addEventListener("mouseup", end);
+  btn.addEventListener("mouseleave", end);
 });
 
 resize();
