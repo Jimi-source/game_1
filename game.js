@@ -11,7 +11,10 @@ const hireSkaterBtn = document.getElementById("hireSkaterBtn");
 const hireSkaterCost = document.getElementById("hireSkaterCost");
 const openBeerBtn = document.getElementById("openBeerBtn");
 const openBeerCost = document.getElementById("openBeerCost");
+const skaterSelect = document.getElementById("skaterSelect");
 const parksList = document.getElementById("parksList");
+const parkViewShow = document.getElementById("parkViewShow");
+const parkViewBeer = document.getElementById("parkViewBeer");
 
 const PARKS = [
   { id: 0, name: "Central Plaza", unlockCost: 0, spectators: 35 },
@@ -19,6 +22,12 @@ const PARKS = [
   { id: 2, name: "Neon Alley", unlockCost: 1600, spectators: 75 },
   { id: 3, name: "Skyline Bowl", unlockCost: 2600, spectators: 95 },
   { id: 4, name: "Harbor Yard", unlockCost: 3800, spectators: 120 },
+];
+
+const SKATERS = [
+  { id: "rookie", name: "Rookie", cost: 220, showMult: 0.6 },
+  { id: "pro", name: "Pro", cost: 520, showMult: 1.1 },
+  { id: "star", name: "Star", cost: 950, showMult: 1.8 },
 ];
 
 const SHOW_RATE = 0.08;
@@ -35,6 +44,7 @@ const state = {
     ...park,
     unlocked: index === 0,
     hired: 0,
+    skaters: [],
     beer: false,
   })),
 };
@@ -52,12 +62,18 @@ function getPark(id) {
 }
 
 function getHireCost(park) {
-  return Math.round(HIRE_BASE * Math.pow(HIRE_GROWTH, park.hired));
+  const selected = SKATERS.find((skater) => skater.id === skaterSelect.value);
+  const base = selected ? selected.cost : HIRE_BASE;
+  return Math.round(base * Math.pow(HIRE_GROWTH, park.hired));
 }
 
 function getParkIncome(park, isActive) {
-  const skaters = park.hired + (isActive ? 1 : 0);
-  const show = park.spectators * SHOW_RATE * skaters;
+  const hiredPower = park.skaters.reduce(
+    (sum, skater) => sum + skater.showMult,
+    0
+  );
+  const playerPower = isActive ? 1 : 0;
+  const show = park.spectators * SHOW_RATE * (hiredPower + playerPower);
   const beer = park.beer ? park.spectators * BEER_RATE : 0;
   return { show, beer, total: show + beer };
 }
@@ -73,7 +89,7 @@ function getTotalIncome() {
 function renderActivePark() {
   const park = getPark(state.activeParkId);
   const income = getParkIncome(park, true);
-  const skaters = park.hired + 1;
+  const skaters = park.skaters.length + 1;
 
   activeParkName.textContent = park.name;
   activeParkStatus.textContent = park.beer
@@ -105,7 +121,7 @@ function renderParks() {
         <div>
           <div class="park-title">${park.name}</div>
           <div class="park-meta">
-            Зрители: ${park.spectators} · Скейтеры: ${park.hired}
+            Зрители: ${park.spectators} · Скейтеры: ${park.skaters.length}
           </div>
         </div>
         <div>${park.unlocked ? "Открыт" : "Закрыт"}</div>
@@ -129,10 +145,50 @@ function renderParks() {
   });
 }
 
+function renderSkaterSelect() {
+  skaterSelect.innerHTML = "";
+  SKATERS.forEach((skater) => {
+    const option = document.createElement("option");
+    option.value = skater.id;
+    option.textContent = `${skater.name} (${formatMoney(skater.cost)})`;
+    skaterSelect.appendChild(option);
+  });
+}
+
+function renderParkView() {
+  const park = getPark(state.activeParkId);
+  parkViewShow.innerHTML = "";
+  parkViewBeer.innerHTML = "";
+
+  const showSkaters = park.skaters.length + 1;
+  for (let i = 0; i < showSkaters; i += 1) {
+    const icon = document.createElement("div");
+    icon.className = "skater-icon";
+    icon.innerHTML = `<span class="head"></span><span class="body"></span><span class="board"></span>`;
+    parkViewShow.appendChild(icon);
+  }
+
+  const crowdDots = Math.min(park.spectators, 16);
+  for (let i = 0; i < crowdDots; i += 1) {
+    const dot = document.createElement("div");
+    dot.className = "spectator-dot";
+    parkViewShow.appendChild(dot);
+  }
+
+  if (park.beer) {
+    const beer = document.createElement("div");
+    beer.className = "beer-icon";
+    parkViewBeer.appendChild(beer);
+  } else {
+    parkViewBeer.textContent = "Пивнуха закрыта";
+  }
+}
+
 function updateHUD() {
   moneyEl.textContent = formatMoney(state.money);
   incomeEl.textContent = formatRate(getTotalIncome());
   renderActivePark();
+  renderParkView();
   renderParks();
 }
 
@@ -157,8 +213,10 @@ function hireSkater() {
   const park = getPark(state.activeParkId);
   const cost = getHireCost(park);
   if (state.money < cost) return;
+  const skater = SKATERS.find((item) => item.id === skaterSelect.value);
+  if (!skater) return;
   state.money -= cost;
-  park.hired += 1;
+  park.skaters.push(skater);
   updateHUD();
 }
 
@@ -182,6 +240,7 @@ function loop(timestamp) {
 
 hireSkaterBtn.addEventListener("click", hireSkater);
 openBeerBtn.addEventListener("click", openBeer);
+skaterSelect.addEventListener("change", updateHUD);
 
 parksList.addEventListener("click", (event) => {
   const target = event.target.closest("button");
@@ -191,5 +250,6 @@ parksList.addEventListener("click", (event) => {
   if (target.dataset.action === "enter") enterPark(parkId);
 });
 
+renderSkaterSelect();
 updateHUD();
 requestAnimationFrame(loop);

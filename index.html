@@ -55,6 +55,8 @@
             </div>
           </div>
           <div class="actions">
+            <label class="select-label" for="skaterSelect">Выбери скейтера</label>
+            <select id="skaterSelect" class="select"></select>
             <button id="hireSkaterBtn" class="action-btn">Нанять скейтера</button>
             <div class="action-sub" id="hireSkaterCost">Стоимость: -</div>
             <button id="openBeerBtn" class="action-btn ghost">
@@ -70,6 +72,17 @@
 
         <section class="panel right">
           <div class="panel-title">Карта города</div>
+          <div id="parkView" class="park-view">
+            <div class="park-view-title">Парк внутри</div>
+            <div class="park-view-row">
+              <div class="park-view-label">Шоу</div>
+              <div id="parkViewShow" class="park-view-scene"></div>
+            </div>
+            <div class="park-view-row">
+              <div class="park-view-label">Пивнуха</div>
+              <div id="parkViewBeer" class="park-view-scene"></div>
+            </div>
+          </div>
           <div id="parksList" class="parks-list"></div>
         </section>
       </main>
