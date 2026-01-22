@@ -13,6 +13,7 @@ const openBeerBtn = document.getElementById("openBeerBtn");
 const openBeerCost = document.getElementById("openBeerCost");
 const skaterSelect = document.getElementById("skaterSelect");
 const parksList = document.getElementById("parksList");
+const cityMap = document.getElementById("cityMap");
 const parkModal = document.getElementById("parkModal");
 const parkModalClose = document.getElementById("parkModalClose");
 const parkModalTitle = document.getElementById("parkModalTitle");
@@ -26,6 +27,14 @@ const PARKS = [
   { id: 2, name: "Neon Alley", unlockCost: 1600, spectators: 75 },
   { id: 3, name: "Skyline Bowl", unlockCost: 2600, spectators: 95 },
   { id: 4, name: "Harbor Yard", unlockCost: 3800, spectators: 120 },
+];
+
+const MAP_LAYOUT = [
+  { id: 0, x: 18, y: 60 },
+  { id: 1, x: 40, y: 30 },
+  { id: 2, x: 62, y: 70 },
+  { id: 3, x: 80, y: 40 },
+  { id: 4, x: 88, y: 75 },
 ];
 
 const SKATERS = [
@@ -150,6 +159,43 @@ function renderParks() {
   });
 }
 
+function renderCityMap() {
+  if (!cityMap) return;
+  cityMap.innerHTML = "";
+  for (let i = 0; i < MAP_LAYOUT.length - 1; i += 1) {
+    const current = MAP_LAYOUT[i];
+    const next = MAP_LAYOUT[i + 1];
+    const line = document.createElement("div");
+    line.className = "map-connector";
+    const dx = next.x - current.x;
+    const dy = next.y - current.y;
+    const length = Math.hypot(dx, dy);
+    const angle = Math.atan2(dy, dx);
+    line.style.left = `${current.x}%`;
+    line.style.top = `${current.y}%`;
+    line.style.width = `${length}%`;
+    line.style.transform = `rotate(${angle}rad)`;
+    cityMap.appendChild(line);
+  }
+
+  MAP_LAYOUT.forEach((node) => {
+    const park = getPark(node.id);
+    const card = document.createElement("div");
+    card.className = `map-node${park.unlocked ? " unlocked" : " locked"}${
+      park.id === state.activeParkId ? " active" : ""
+    }`;
+    card.style.left = `${node.x}%`;
+    card.style.top = `${node.y}%`;
+    card.innerHTML = `<div class="dot"></div>${park.name}`;
+    card.addEventListener("click", () => {
+      if (park.unlocked) {
+        enterPark(park.id);
+      }
+    });
+    cityMap.appendChild(card);
+  });
+}
+
 function renderSkaterSelect() {
   skaterSelect.innerHTML = "";
   SKATERS.forEach((skater) => {
@@ -213,6 +259,7 @@ function updateMoneyOnly() {
 function renderAll() {
   updateMoneyOnly();
   renderActivePark();
+  renderCityMap();
   renderParks();
 }
 
