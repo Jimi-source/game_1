@@ -380,11 +380,13 @@ canvas#game {
   }
 
   .controls {
-    display: none;
+    font-size: 11px;
   }
 
   .tasks {
-    display: none;
+    display: block;
+    max-height: 140px;
+    overflow: auto;
   }
 
   .title {
