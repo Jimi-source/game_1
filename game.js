@@ -58,6 +58,7 @@ const LEVELS = [
 let beerMugs = [];
 let buildings = [];
 let particles = [];
+let obstacles = [];
 
 const state = {
   running: false,
@@ -70,6 +71,12 @@ const state = {
   collected: 0,
   total: 0,
   lastTick: 0,
+  finishX: 0,
+  finishReached: false,
+  airTime: 0,
+  hitCooldown: 0,
+  shake: 0,
+  frameDelta: 0,
 };
 
 let audioCtx = null;
@@ -104,6 +111,7 @@ function buildLevel(levelIndex) {
     LEVELS[Math.min(levelIndex, LEVELS.length - 1)];
   const extra = Math.max(0, levelIndex - (LEVELS.length - 1));
   WORLD.width = base.width + extra * 260;
+  state.finishX = WORLD.width - 140;
 
   PLAYER.speed = base.speed + extra * 0.03;
   PLAYER.maxSpeed = base.maxSpeed + extra * 0.2;
@@ -134,6 +142,25 @@ function buildLevel(levelIndex) {
     cursor += width + 30 + buildingRng() * 40;
   }
 
+  obstacles = [];
+  const obstacleCount = 4 + levelIndex * 2;
+  const obstacleRng = createRng(levelIndex + 123);
+  for (let i = 0; i < obstacleCount; i += 1) {
+    const x = clamp(
+      360 + obstacleRng() * (WORLD.width - 520),
+      320,
+      WORLD.width - 220
+    );
+    const kind = obstacleRng() > 0.5 ? "cone" : "barrier";
+    obstacles.push({
+      x,
+      width: kind === "cone" ? 26 : 44,
+      height: kind === "cone" ? 28 : 22,
+      kind,
+      hit: false,
+    });
+  }
+
   PLAYER.x = 160;
   PLAYER.y = groundHeight(PLAYER.x);
 
@@ -141,6 +168,10 @@ function buildLevel(levelIndex) {
   state.total = mugCount;
   state.levelTime = 0;
   state.levelComplete = false;
+  state.finishReached = false;
+  state.airTime = 0;
+  state.hitCooldown = 0;
+  state.shake = 0;
 
   hudTotal.textContent = state.total;
   hudCollected.textContent = "0";
@@ -205,6 +236,12 @@ function playSound(type) {
   }
   if (type === "start") {
     playTone({ freq: 520, duration: 0.22, type: "triangle", volume: 0.18 });
+  }
+  if (type === "hit") {
+    playTone({ freq: 180, duration: 0.12, type: "square", volume: 0.12 });
+  }
+  if (type === "trick") {
+    playTone({ freq: 820, duration: 0.18, type: "triangle", volume: 0.16 });
   }
 }
 
@@ -281,6 +318,47 @@ function drawRoadDetails() {
   }
   ctx.stroke();
   ctx.setLineDash([]);
+}
+
+function drawFinish() {
+  const x = state.finishX - CAMERA.x;
+  const y = groundHeight(state.finishX) - CAMERA.y;
+  ctx.strokeStyle = "#38bdf8";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x, y - 120);
+  ctx.stroke();
+
+  ctx.fillStyle = "#f8fafc";
+  ctx.beginPath();
+  ctx.moveTo(x, y - 120);
+  ctx.lineTo(x + 36, y - 108);
+  ctx.lineTo(x, y - 96);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawObstacles(time) {
+  obstacles.forEach((obs) => {
+    const centerX = obs.x + obs.width / 2;
+    const wobble = obs.kind === "cone" ? Math.sin(time * 4 + centerX) * 2 : 0;
+    const x = obs.x - CAMERA.x;
+    const y = groundHeight(centerX) - obs.height - CAMERA.y + wobble;
+    ctx.fillStyle = obs.kind === "cone" ? "#f97316" : "#94a3b8";
+    if (obs.kind === "cone") {
+      ctx.beginPath();
+      ctx.moveTo(x, y + obs.height);
+      ctx.lineTo(x + obs.width / 2, y);
+      ctx.lineTo(x + obs.width, y + obs.height);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillRect(x, y, obs.width, obs.height);
+      ctx.fillStyle = "#0f172a";
+      ctx.fillRect(x + 6, y + 6, obs.width - 12, obs.height - 12);
+    }
+  });
 }
 
 function drawBeerMug(mug, time) {
@@ -380,9 +458,18 @@ function updatePlayer() {
 
   const groundY = groundHeight(PLAYER.x);
   if (PLAYER.y >= groundY) {
+    if (!PLAYER.onGround && state.airTime > 0.35) {
+      const trickBonus = Math.round(state.airTime * 120);
+      state.score += trickBonus;
+      playSound("trick");
+      spawnParticles(PLAYER.x, PLAYER.y - 28);
+    }
     PLAYER.y = groundY;
     PLAYER.vy = 0;
     PLAYER.onGround = true;
+    state.airTime = 0;
+  } else {
+    state.airTime += state.frameDelta;
   }
 
   if (PLAYER.onGround && !moveLeft && !moveRight) {
@@ -400,6 +487,10 @@ function updateCamera() {
   const maxY = Math.max(0, WORLD.height - canvas.height);
   CAMERA.x = clamp(PLAYER.x - canvas.width * 0.4, 0, maxX);
   CAMERA.y = clamp(PLAYER.y - canvas.height * 0.6, 0, maxY);
+  if (state.shake > 0) {
+    CAMERA.x += (Math.random() - 0.5) * 10 * state.shake;
+    CAMERA.y += (Math.random() - 0.5) * 6 * state.shake;
+  }
 }
 
 function spawnParticles(x, y) {
@@ -453,8 +544,40 @@ function checkBeerCollection() {
     updateHUD();
   }
   if (state.collected === state.total && !state.levelComplete) {
+    checkFinish();
+  }
+}
+
+function checkFinish() {
+  if (state.levelComplete) return;
+  if (state.collected < state.total) return;
+  const distance = Math.abs(PLAYER.x - state.finishX);
+  if (distance < 60 && PLAYER.onGround) {
     completeLevel();
   }
+}
+
+function checkObstacles() {
+  if (state.hitCooldown > 0) {
+    state.hitCooldown -= state.frameDelta;
+    return;
+  }
+  if (!PLAYER.onGround) return;
+  const playerLeft = PLAYER.x - PLAYER.width / 2;
+  const playerRight = PLAYER.x + PLAYER.width / 2;
+  obstacles.forEach((obs) => {
+    const left = obs.x;
+    const right = obs.x + obs.width;
+    if (playerRight > left && playerLeft < right) {
+      state.hitCooldown = 0.6;
+      PLAYER.vx = -PLAYER.vx * 0.4;
+      state.score = Math.max(0, state.score - 60);
+      state.levelTime += 1.5;
+      state.shake = 1;
+      playSound("hit");
+      spawnParticles(obs.x + obs.width / 2, groundHeight(obs.x) - 10);
+    }
+  });
 }
 
 function completeLevel() {
@@ -475,6 +598,8 @@ function render(time) {
   drawBuildings();
   drawGround();
   drawRoadDetails();
+  drawFinish();
+  drawObstacles(time);
 
   beerMugs.forEach((mug) => drawBeerMug(mug, time));
   drawParticles();
@@ -485,6 +610,7 @@ function loop(timestamp) {
   if (!state.lastTick) state.lastTick = timestamp;
   const delta = Math.min(0.05, (timestamp - state.lastTick) / 1000);
   state.lastTick = timestamp;
+  state.frameDelta = delta;
   const time = timestamp / 1000;
 
   if (state.running) {
@@ -494,6 +620,9 @@ function loop(timestamp) {
     updateCamera();
     updateParticles(delta);
     checkBeerCollection();
+    checkObstacles();
+    checkFinish();
+    state.shake = Math.max(0, state.shake - delta * 3);
     updateHUD();
   }
 
