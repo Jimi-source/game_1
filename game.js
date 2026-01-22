@@ -223,6 +223,12 @@ function updateHUD() {
 }
 
 async function loadLeaderboard() {
+  if (window.location.protocol === "file:") {
+    leaderboardStatus.textContent =
+      "Открой игру через локальный сервер (http://), чтобы работала таблица.";
+    leaderboardList.innerHTML = "";
+    return;
+  }
   leaderboardStatus.textContent = "Загрузка...";
   leaderboardList.innerHTML = "";
   try {
@@ -243,13 +249,20 @@ async function loadLeaderboard() {
       leaderboardList.appendChild(item);
     });
   } catch (error) {
-    leaderboardStatus.textContent = "Ошибка загрузки таблицы.";
+    leaderboardStatus.textContent = `Ошибка загрузки таблицы: ${
+      error?.code || "unknown"
+    }`;
     console.error(error);
   }
 }
 
 async function saveScore() {
   if (!state.playerName) return;
+  if (window.location.protocol === "file:") {
+    leaderboardStatus.textContent =
+      "Нужен http(s) сервер, чтобы сохранить результат.";
+    return;
+  }
   try {
     await addDoc(scoresRef, {
       name: state.playerName,
