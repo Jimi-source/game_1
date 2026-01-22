@@ -6,7 +6,7 @@
 
 body {
   font-family: "Helvetica Neue", Arial, sans-serif;
-  background: #0f172a;
+  background: radial-gradient(circle at top, #1e293b 0%, #0f172a 55%, #0b1120 100%);
   color: #e2e8f0;
   height: 100vh;
   overflow: hidden;
@@ -17,13 +17,25 @@ body {
   top: 16px;
   left: 16px;
   z-index: 10;
-  background: rgba(15, 23, 42, 0.78);
-  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(30, 41, 59, 0.8));
+  border: 1px solid rgba(148, 163, 184, 0.35);
   border-radius: 16px;
   padding: 14px 18px;
   backdrop-filter: blur(10px);
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.45);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.55);
   min-width: 240px;
+}
+
+.hud::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 18px;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(245, 158, 11, 0.15));
+  opacity: 0.4;
+  filter: blur(8px);
+  z-index: -1;
 }
 
 .title {
@@ -66,6 +78,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.15);
 }
 
 .label {
@@ -152,10 +168,22 @@ body {
   display: flex;
   justify-content: space-between;
   gap: 10px;
+  align-items: center;
 }
 
 .tasks li span:last-child {
   color: #38bdf8;
+}
+
+.tasks li.done span:last-child {
+  color: #22c55e;
+}
+
+.tasks li.done::before {
+  content: "✔";
+  font-size: 11px;
+  color: #22c55e;
+  margin-right: 6px;
 }
 
 .controls {
@@ -266,6 +294,7 @@ canvas#game {
   border-radius: 999px;
   cursor: pointer;
   font-size: 14px;
+  box-shadow: 0 12px 24px rgba(56, 189, 248, 0.25);
 }
 
 .touch-controls {
@@ -319,6 +348,11 @@ canvas#game {
 .btn.trick2 {
   right: 24px;
   bottom: 88px;
+}
+
+.btn.trick3 {
+  right: 112px;
+  bottom: 24px;
 }
 
 @media (min-width: 900px) {

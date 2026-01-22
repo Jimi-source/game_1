@@ -50,7 +50,8 @@
           <ul id="tasksList"></ul>
         </div>
         <div class="controls">
-          Управление: ←/→ или A/D — ехать, ↑/W/Space — прыжок, Z/X — трюки
+          Управление: ←/→ или A/D — ехать, ↑/W/Space — прыжок,
+          Z+X — kickflip, Z+↑ — heelflip, X+↓ — shove-it
         </div>
       </div>
     </div>
@@ -87,8 +88,9 @@
       <button class="btn left" data-action="left">◀</button>
       <button class="btn right" data-action="right">▶</button>
       <button class="btn jump" data-action="jump">⤴</button>
-      <button class="btn trick1" data-action="trick1">Z</button>
-      <button class="btn trick2" data-action="trick2">X</button>
+      <button class="btn trick1" data-action="trick-kick">K</button>
+      <button class="btn trick2" data-action="trick-heel">H</button>
+      <button class="btn trick3" data-action="trick-shove">S</button>
     </div>
     <canvas id="game"></canvas>
     <script type="module" src="./game.js"></script>

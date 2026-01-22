@@ -86,6 +86,33 @@ const LEVELS = [
   { width: 3400, mugs: 12, speed: 0.72, maxSpeed: 8.4, jump: 16.1 },
 ];
 
+const TRICKS = {
+  kickflip: {
+    label: "Kickflip",
+    hint: "Z+X",
+    score: 140,
+    spin: Math.PI * 2,
+    flip: true,
+    duration: 0.48,
+  },
+  heelflip: {
+    label: "Heelflip",
+    hint: "Z+↑",
+    score: 130,
+    spin: -Math.PI * 2,
+    flip: true,
+    duration: 0.48,
+  },
+  shove: {
+    label: "Shove-it",
+    hint: "X+↓",
+    score: 120,
+    spin: Math.PI * 1.5,
+    flip: false,
+    duration: 0.4,
+  },
+};
+
 let beerMugs = [];
 let buildings = [];
 let particles = [];
@@ -115,6 +142,8 @@ const state = {
   movingInput: false,
   trickCooldown: 0,
   airTrickCount: 0,
+  trickBuffer: [],
+  trickAnim: null,
   tasks: [],
 };
 
@@ -215,7 +244,9 @@ function buildLevel(levelIndex) {
   state.energyDepleted = false;
   state.trickCooldown = 0;
   state.airTrickCount = 0;
-  const trickTarget = 2 + levelIndex * 2;
+  const kickTarget = 1 + Math.floor(levelIndex / 1);
+  const heelTarget = 1 + Math.floor(levelIndex / 2);
+  const shoveTarget = 1 + Math.floor(levelIndex / 2);
   const jumpTarget = 1 + levelIndex;
   state.tasks = [
     {
@@ -225,10 +256,25 @@ function buildLevel(levelIndex) {
       target: state.total,
     },
     {
-      type: "trick",
-      label: "Трюки",
+      type: "trick:kickflip",
+      label: TRICKS.kickflip.label,
+      hint: TRICKS.kickflip.hint,
       value: 0,
-      target: trickTarget,
+      target: kickTarget,
+    },
+    {
+      type: "trick:heelflip",
+      label: TRICKS.heelflip.label,
+      hint: TRICKS.heelflip.hint,
+      value: 0,
+      target: heelTarget,
+    },
+    {
+      type: "trick:shove",
+      label: TRICKS.shove.label,
+      hint: TRICKS.shove.hint,
+      value: 0,
+      target: shoveTarget,
     },
     {
       type: "longjump",
@@ -269,7 +315,11 @@ function renderTasks() {
   tasksList.innerHTML = "";
   state.tasks.forEach((task) => {
     const item = document.createElement("li");
-    item.innerHTML = `<span>${task.label}</span><span>${task.value}/${task.target}</span>`;
+    if (task.value >= task.target) {
+      item.classList.add("done");
+    }
+    const hint = task.hint ? ` (${task.hint})` : "";
+    item.innerHTML = `<span>${task.label}${hint}</span><span>${task.value}/${task.target}</span>`;
     tasksList.appendChild(item);
   });
 }
@@ -283,6 +333,58 @@ function updateTask(type, amount = 1) {
 
 function areTasksComplete() {
   return state.tasks.every((task) => task.value >= task.target);
+}
+
+const COMBO_WINDOW = 0.28;
+const COMBO_KEYS = new Set([
+  "KeyZ",
+  "KeyX",
+  "ArrowUp",
+  "ArrowDown",
+  "KeyW",
+  "KeyS",
+]);
+
+function recordCombo(code) {
+  const now = performance.now() / 1000;
+  state.trickBuffer.push({ code, time: now });
+  state.trickBuffer = state.trickBuffer.filter(
+    (entry) => now - entry.time <= COMBO_WINDOW
+  );
+  return now;
+}
+
+function hasCombo(codes, now) {
+  return codes.every((code) =>
+    state.trickBuffer.some(
+      (entry) => entry.code === code && now - entry.time <= COMBO_WINDOW
+    )
+  );
+}
+
+function tryCombo(now) {
+  if (PLAYER.onGround) return;
+  if (state.trickCooldown > 0) return;
+  if (hasCombo(["KeyZ", "KeyX"], now)) {
+    performTrick("kickflip");
+    state.trickBuffer = [];
+    return;
+  }
+  if (
+    hasCombo(["KeyZ", "ArrowUp"], now) ||
+    hasCombo(["KeyZ", "KeyW"], now)
+  ) {
+    performTrick("heelflip");
+    state.trickBuffer = [];
+    return;
+  }
+  if (
+    hasCombo(["KeyX", "ArrowDown"], now) ||
+    hasCombo(["KeyX", "KeyS"], now)
+  ) {
+    performTrick("shove");
+    state.trickBuffer = [];
+  }
 }
 
 async function loadLeaderboard() {
@@ -558,6 +660,14 @@ function drawSkater(time) {
   const speed = Math.abs(PLAYER.vx);
   const bob = Math.sin(time * 8 + x * 0.01) * (PLAYER.onGround ? 2 : 5);
   const lean = clamp(PLAYER.vx / PLAYER.maxSpeed, -1, 1) * 0.15;
+  let boardRotation = 0;
+  let boardFlip = 1;
+  if (state.trickAnim) {
+    const trick = TRICKS[state.trickAnim.name];
+    const progress = clamp(state.trickAnim.t / trick.duration, 0, 1);
+    boardRotation = trick.spin * progress;
+    boardFlip = trick.flip ? Math.cos(progress * Math.PI) : 1;
+  }
 
   ctx.save();
   ctx.translate(x, y + bob);
@@ -571,6 +681,12 @@ function drawSkater(time) {
   ctx.fillStyle = "#0f172a";
   ctx.fillRect(-12, -24, 24, 10);
 
+  const wheelSpin = time * (speed * 0.4 + 1.2);
+  ctx.save();
+  ctx.translate(0, 6);
+  ctx.rotate(boardRotation);
+  ctx.scale(1, boardFlip);
+
   ctx.fillStyle = "#111827";
   ctx.beginPath();
   ctx.moveTo(-26, 2);
@@ -578,7 +694,6 @@ function drawSkater(time) {
   ctx.quadraticCurveTo(0, 16, -26, 2);
   ctx.fill();
 
-  const wheelSpin = time * (speed * 0.4 + 1.2);
   ctx.fillStyle = "#475569";
   ctx.beginPath();
   ctx.arc(-16, 10, 5, 0, Math.PI * 2);
@@ -590,8 +705,18 @@ function drawSkater(time) {
   ctx.arc(-16, 10, 5, wheelSpin, wheelSpin + Math.PI);
   ctx.arc(16, 10, 5, wheelSpin, wheelSpin + Math.PI);
   ctx.stroke();
+  ctx.restore();
 
   ctx.restore();
+}
+
+function updateTrickAnim(delta) {
+  if (!state.trickAnim) return;
+  const trick = TRICKS[state.trickAnim.name];
+  state.trickAnim.t += delta;
+  if (state.trickAnim.t >= trick.duration) {
+    state.trickAnim = null;
+  }
 }
 
 function updatePlayer() {
@@ -798,6 +923,7 @@ function loop(timestamp) {
     state.totalTime += delta;
     state.trickCooldown = Math.max(0, state.trickCooldown - delta);
     updatePlayer();
+    updateTrickAnim(delta);
     updateCamera();
     updateParticles(delta);
     if (state.movingInput && Math.abs(PLAYER.vx) > 0.2) {
@@ -843,18 +969,23 @@ function startNextLevel() {
 function performTrick(type) {
   if (PLAYER.onGround) return;
   if (state.trickCooldown > 0) return;
-  state.trickCooldown = 0.45;
-  state.score += type === "kick" ? 120 : 90;
+  const trick = TRICKS[type];
+  if (!trick) return;
+  state.trickCooldown = trick.duration;
+  state.score += trick.score;
   state.airTrickCount += 1;
-  updateTask("trick", 1);
+  updateTask(`trick:${type}`, 1);
+  state.trickAnim = { name: type, t: 0 };
   playSound("trick");
   spawnParticles(PLAYER.x, PLAYER.y - 26);
 }
 
 window.addEventListener("keydown", (event) => {
   keys.add(event.code);
-  if (event.code === "KeyZ") performTrick("kick");
-  if (event.code === "KeyX") performTrick("heel");
+  if (COMBO_KEYS.has(event.code)) {
+    const now = recordCombo(event.code);
+    tryCombo(now);
+  }
 });
 
 window.addEventListener("keyup", (event) => {
@@ -883,8 +1014,9 @@ document.querySelectorAll(".touch-controls .btn").forEach((btn) => {
   const action = btn.dataset.action;
   const start = (event) => {
     event.preventDefault();
-    if (action === "trick1") performTrick("kick");
-    if (action === "trick2") performTrick("heel");
+    if (action === "trick-kick") performTrick("kickflip");
+    if (action === "trick-heel") performTrick("heelflip");
+    if (action === "trick-shove") performTrick("shove");
     setTouch(action, true);
   };
   const end = (event) => {
