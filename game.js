@@ -1,3 +1,28 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  limit,
+  getDocs,
+  serverTimestamp,
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC795YH1oJyQbwJDM6xfemZQ1njDpFwBDg",
+  authDomain: "gameofskate-f71f9.firebaseapp.com",
+  projectId: "gameofskate-f71f9",
+  storageBucket: "gameofskate-f71f9.firebasestorage.app",
+  messagingSenderId: "748973391526",
+  appId: "1:748973391526:web:0d3ccc9d88bbcc92527e67",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const scoresRef = collection(db, "scores");
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -13,6 +38,9 @@ const levelComplete = document.getElementById("levelComplete");
 const nextBtn = document.getElementById("nextBtn");
 const levelStats = document.getElementById("levelStats");
 const muteToggle = document.getElementById("muteToggle");
+const playerNameInput = document.getElementById("playerName");
+const leaderboardList = document.getElementById("leaderboardList");
+const leaderboardStatus = document.getElementById("leaderboardStatus");
 
 const WORLD = {
   width: 3200,
@@ -77,6 +105,7 @@ const state = {
   hitCooldown: 0,
   shake: 0,
   frameDelta: 0,
+  playerName: "",
 };
 
 let audioCtx = null;
@@ -191,6 +220,48 @@ function updateHUD() {
   hudScore.textContent = state.score;
   hudTime.textContent = `${state.levelTime.toFixed(1)}s`;
   progressFill.style.width = `${(state.collected / state.total) * 100}%`;
+}
+
+async function loadLeaderboard() {
+  leaderboardStatus.textContent = "Загрузка...";
+  leaderboardList.innerHTML = "";
+  try {
+    const scoresQuery = query(scoresRef, orderBy("score", "desc"), limit(10));
+    const snapshot = await getDocs(scoresQuery);
+    if (snapshot.empty) {
+      leaderboardStatus.textContent = "Пока нет результатов.";
+      return;
+    }
+    leaderboardStatus.textContent = "";
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      const item = document.createElement("li");
+      const name = data.name || "Player";
+      const score = data.score ?? 0;
+      const level = data.level ?? 1;
+      item.innerHTML = `<span>${name}</span><span>${score} • L${level}</span>`;
+      leaderboardList.appendChild(item);
+    });
+  } catch (error) {
+    leaderboardStatus.textContent = "Ошибка загрузки таблицы.";
+    console.error(error);
+  }
+}
+
+async function saveScore() {
+  if (!state.playerName) return;
+  try {
+    await addDoc(scoresRef, {
+      name: state.playerName,
+      score: state.score,
+      level: state.levelIndex + 1,
+      time: state.levelTime,
+      createdAt: serverTimestamp(),
+    });
+    loadLeaderboard();
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 function ensureAudio() {
@@ -591,6 +662,7 @@ function completeLevel() {
   )}s • Bonus ${bonus} • Total ${state.score}`;
   levelComplete.classList.remove("hidden");
   playSound("level");
+  saveScore();
 }
 
 function render(time) {
@@ -692,6 +764,12 @@ document.querySelectorAll(".touch-controls .btn").forEach((btn) => {
 startBtn.addEventListener("click", () => {
   ensureAudio();
   if (!state.started) {
+    const name = playerNameInput.value.trim();
+    if (!name) {
+      playerNameInput.focus();
+      return;
+    }
+    state.playerName = name;
     state.started = true;
     buildLevel(0);
   }
@@ -718,4 +796,5 @@ muteToggle.addEventListener("click", () => {
 resize();
 buildLevel(0);
 updateCamera();
+loadLeaderboard();
 loop();

@@ -49,7 +49,16 @@
           Собери все кружки, избегай препятствий и доедь до финиша.
           Нажми, чтобы начать.
         </p>
+        <div class="field">
+          <label for="playerName">Имя игрока</label>
+          <input id="playerName" type="text" maxlength="16" placeholder="Skater" />
+        </div>
         <button id="startBtn" class="primary-btn">Start</button>
+        <div class="leaderboard">
+          <h3>Таблица результатов</h3>
+          <div id="leaderboardStatus" class="muted">Загрузка...</div>
+          <ol id="leaderboardList"></ol>
+        </div>
       </div>
     </div>
 
@@ -67,6 +76,6 @@
       <button class="btn jump" data-action="jump">⤴</button>
     </div>
     <canvas id="game"></canvas>
-    <script src="./game.js"></script>
+    <script type="module" src="./game.js"></script>
   </body>
 </html>
