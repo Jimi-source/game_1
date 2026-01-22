@@ -85,18 +85,73 @@
           <button id="parkModalClose" class="icon-btn">Закрыть</button>
         </div>
         <div class="park-scene">
-          <div class="park-scene-sky"></div>
-          <div class="park-scene-ground"></div>
-          <div class="park-scene-ramp"></div>
-          <div class="park-scene-rail"></div>
-          <div class="park-scene-fence"></div>
-          <div class="park-scene-bench"></div>
-          <div class="park-scene-graffiti">SK8</div>
-          <div class="park-scene-light left"></div>
-          <div class="park-scene-light right"></div>
-          <div id="parkSceneSkaters" class="park-scene-skaters"></div>
-          <div id="parkSceneCrowd" class="park-scene-crowd"></div>
-          <div id="parkSceneBeer" class="park-scene-beer"></div>
+          <svg
+            id="parkSceneSvg"
+            viewBox="0 0 900 420"
+            role="img"
+            aria-label="Сцена скейтпарка"
+          >
+            <defs>
+              <linearGradient id="skyGrad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#9bd6ff" />
+                <stop offset="55%" stop-color="#cfe8ff" />
+                <stop offset="100%" stop-color="#f8d0b0" />
+              </linearGradient>
+              <linearGradient id="groundGrad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#f7b48c" />
+                <stop offset="100%" stop-color="#e98a62" />
+              </linearGradient>
+              <linearGradient id="rampGrad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#ffd166" />
+                <stop offset="100%" stop-color="#f4a261" />
+              </linearGradient>
+            </defs>
+
+            <rect width="900" height="420" fill="url(#skyGrad)" />
+            <circle cx="140" cy="80" r="38" fill="#fff6" />
+            <circle cx="220" cy="70" r="28" fill="#fff6" />
+            <circle cx="720" cy="90" r="32" fill="#fff6" />
+
+            <rect y="290" width="900" height="140" fill="url(#groundGrad)" />
+            <rect y="288" width="900" height="6" fill="#0f172a" />
+
+            <rect x="0" y="240" width="900" height="28" fill="#fb7185" />
+            <rect x="0" y="240" width="900" height="28" fill="none" stroke="#0f172a" stroke-width="4" />
+            <g fill="#fdf2f8">
+              <rect x="20" y="246" width="10" height="16" />
+              <rect x="60" y="246" width="10" height="16" />
+              <rect x="100" y="246" width="10" height="16" />
+              <rect x="140" y="246" width="10" height="16" />
+              <rect x="180" y="246" width="10" height="16" />
+              <rect x="220" y="246" width="10" height="16" />
+              <rect x="260" y="246" width="10" height="16" />
+              <rect x="300" y="246" width="10" height="16" />
+              <rect x="340" y="246" width="10" height="16" />
+              <rect x="380" y="246" width="10" height="16" />
+              <rect x="420" y="246" width="10" height="16" />
+              <rect x="460" y="246" width="10" height="16" />
+              <rect x="500" y="246" width="10" height="16" />
+              <rect x="540" y="246" width="10" height="16" />
+              <rect x="580" y="246" width="10" height="16" />
+              <rect x="620" y="246" width="10" height="16" />
+              <rect x="660" y="246" width="10" height="16" />
+              <rect x="700" y="246" width="10" height="16" />
+              <rect x="740" y="246" width="10" height="16" />
+              <rect x="780" y="246" width="10" height="16" />
+              <rect x="820" y="246" width="10" height="16" />
+              <rect x="860" y="246" width="10" height="16" />
+            </g>
+
+            <rect x="520" y="210" width="150" height="70" rx="18" fill="url(#rampGrad)" stroke="#0f172a" stroke-width="4" />
+            <rect x="160" y="210" width="170" height="14" rx="7" fill="#f4f4f5" stroke="#0f172a" stroke-width="4" />
+
+            <rect x="380" y="255" width="120" height="22" rx="10" fill="#a78bfa" stroke="#0f172a" stroke-width="4" />
+            <text x="710" y="230" font-size="28" font-weight="900" fill="#0f172a">SK8</text>
+
+            <g id="parkSceneSkaters"></g>
+            <g id="parkSceneCrowd"></g>
+            <g id="parkSceneBeer"></g>
+          </svg>
         </div>
       </div>
     </div>
