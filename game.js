@@ -228,131 +228,116 @@ function renderParkScene(park) {
   clearGroup(parkSceneBeer);
 
   const showSkaters = park.skaters.length + 1;
+  const skaterPalette = ["#1f2937", "#ef4444", "#0ea5e9", "#10b981"];
+  const skaterPositions = [
+    { x: 210, y: 210, scale: 1.1 },
+    { x: 430, y: 190, scale: 1.0 },
+    { x: 610, y: 220, scale: 0.95 },
+    { x: 120, y: 260, scale: 0.9 },
+  ];
+
   for (let i = 0; i < showSkaters; i += 1) {
-    const x = 120 + i * 90;
-    const y = 260 + (i % 2) * 6;
+    const pos = skaterPositions[i % skaterPositions.length];
+    const outer = createSvgEl("g", {
+      transform: `translate(${pos.x}, ${pos.y}) scale(${pos.scale})`,
+    });
     const skater = createSvgEl("g", {
-      transform: `translate(${x}, ${y})`,
+      class: `scene-skater${i % 2 === 0 ? " fast" : ""}`,
     });
     const head = createSvgEl("circle", {
-      cx: 18,
-      cy: -40,
-      r: 10,
+      cx: 16,
+      cy: -30,
+      r: 8,
       fill: "#fcd34d",
       stroke: "#0f172a",
-      "stroke-width": 3,
+      "stroke-width": 2,
     });
     const torso = createSvgEl("rect", {
-      x: 8,
-      y: -28,
+      x: 6,
+      y: -20,
       width: 20,
-      height: 28,
-      rx: 10,
-      fill: "#60a5fa",
+      height: 26,
+      rx: 8,
+      fill: skaterPalette[i % skaterPalette.length],
       stroke: "#0f172a",
-      "stroke-width": 3,
+      "stroke-width": 2,
     });
     const legLeft = createSvgEl("rect", {
-      x: 6,
-      y: 0,
-      width: 10,
-      height: 22,
-      rx: 6,
-      fill: "#f97316",
-      stroke: "#0f172a",
-      "stroke-width": 3,
+      x: 4,
+      y: 6,
+      width: 8,
+      height: 20,
+      rx: 4,
+      fill: "#0f172a",
     });
     const legRight = createSvgEl("rect", {
       x: 20,
-      y: 0,
-      width: 10,
-      height: 22,
-      rx: 6,
-      fill: "#f97316",
-      stroke: "#0f172a",
-      "stroke-width": 3,
+      y: 6,
+      width: 8,
+      height: 20,
+      rx: 4,
+      fill: "#0f172a",
     });
     const board = createSvgEl("rect", {
-      x: -6,
+      x: -4,
       y: 24,
-      width: 48,
-      height: 10,
+      width: 44,
+      height: 8,
       rx: 6,
-      fill: "#f43f5e",
+      fill: "#f59e0b",
       stroke: "#0f172a",
-      "stroke-width": 3,
+      "stroke-width": 2,
     });
     skater.append(head, torso, legLeft, legRight, board);
-    parkSceneSkaters.appendChild(skater);
+    outer.appendChild(skater);
+    parkSceneSkaters.appendChild(outer);
   }
 
-  const crowdCount = Math.min(park.spectators, 12);
+  const crowdCount = Math.min(park.spectators, 10);
   for (let i = 0; i < crowdCount; i += 1) {
-    const x = 560 + i * 26;
+    const x = 520 + i * 28;
     const y = 250 + (i % 2) * 6;
+    const group = createSvgEl("g", { class: "scene-crowd" });
     const body = createSvgEl("rect", {
       x,
       y,
       width: 18,
-      height: 30,
-      rx: 9,
-      fill: "#f472b6",
+      height: 28,
+      rx: 8,
+      fill: "#1f2937",
       stroke: "#0f172a",
-      "stroke-width": 3,
+      "stroke-width": 2,
     });
     const head = createSvgEl("circle", {
       cx: x + 9,
       cy: y - 6,
-      r: 8,
+      r: 7,
       fill: "#fde68a",
       stroke: "#0f172a",
-      "stroke-width": 3,
+      "stroke-width": 2,
     });
-    parkSceneCrowd.appendChild(body);
-    parkSceneCrowd.appendChild(head);
+    group.append(body, head);
+    parkSceneCrowd.appendChild(group);
   }
 
   if (park.beer) {
-    const stand = createSvgEl("rect", {
-      x: 60,
-      y: 250,
-      width: 140,
-      height: 54,
-      rx: 16,
-      fill: "#fde047",
-      stroke: "#0f172a",
-      "stroke-width": 4,
-    });
-    const label = createSvgEl("text", {
-      x: 130,
-      y: 284,
-      "text-anchor": "middle",
-      "font-size": 18,
-      "font-weight": 800,
-      fill: "#0f172a",
-    });
-    label.textContent = "BEER";
-    const seat = createSvgEl("rect", {
-      x: 220,
-      y: 268,
-      width: 90,
-      height: 22,
-      rx: 10,
-      fill: "#a78bfa",
-      stroke: "#0f172a",
-      "stroke-width": 4,
-    });
-    parkSceneBeer.append(stand, label, seat);
-  } else {
-    const off = createSvgEl("text", {
-      x: 80,
-      y: 280,
-      "font-size": 16,
-      "font-weight": 700,
-      fill: "#0f172a",
-    });
-    off.textContent = "Пивнуха закрыта";
-    parkSceneBeer.appendChild(off);
+    const cupsCount = Math.min(park.spectators, 6);
+    for (let i = 0; i < cupsCount; i += 1) {
+      const x = 540 + i * 30;
+      const y = 300 + (i % 2) * 6;
+      const cup = createSvgEl("rect", {
+        x,
+        y,
+        width: 14,
+        height: 20,
+        rx: 4,
+        fill: "#f59e0b",
+        stroke: "#0f172a",
+        "stroke-width": 2,
+        class: "scene-cup",
+      });
+      parkSceneBeer.appendChild(cup);
+    }
   }
 }
 

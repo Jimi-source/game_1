@@ -317,15 +317,70 @@ body {
   height: 360px;
   border-radius: 18px;
   overflow: hidden;
-  background: linear-gradient(180deg, #9bd6ff 0%, #cfe8ff 45%, #f8d0b0 65%, #f4c4a1 100%);
+  background: #0f172a;
   border: 3px solid #0f172a;
-  box-shadow: inset 0 0 0 3px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.4);
 }
 
 .park-scene svg {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.park-scene svg image {
+  filter: saturate(1.05) contrast(1.05);
+}
+
+.scene-skater {
+  transform-origin: center;
+  animation: skaterBob 2.6s ease-in-out infinite;
+}
+
+.scene-skater.fast {
+  animation-duration: 2.1s;
+}
+
+.scene-crowd {
+  transform-origin: center;
+  animation: crowdBob 3.2s ease-in-out infinite;
+}
+
+.scene-cup {
+  transform-origin: center;
+  animation: cupBob 2.8s ease-in-out infinite;
+}
+
+@keyframes skaterBob {
+  0% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+}
+
+@keyframes crowdBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes cupBob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 .park-scene-sky {
   position: absolute;
