@@ -365,9 +365,29 @@ canvas#game {
   .hud {
     left: 12px;
     right: 12px;
+    top: 8px;
+    padding: 10px 12px;
+    max-height: 42vh;
+    overflow: auto;
   }
 
   .stats-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .progress-wrap {
+    gap: 6px;
+  }
+
+  .controls {
+    display: none;
+  }
+
+  .tasks {
+    display: none;
+  }
+
+  .title {
+    font-size: 16px;
   }
 }
