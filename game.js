@@ -205,9 +205,13 @@ function renderParkScene(park) {
   }
 }
 
-function updateHUD() {
+function updateMoneyOnly() {
   moneyEl.textContent = formatMoney(state.money);
   incomeEl.textContent = formatRate(getTotalIncome());
+}
+
+function renderAll() {
+  updateMoneyOnly();
   renderActivePark();
   renderParks();
 }
@@ -219,7 +223,7 @@ function unlockPark(parkId) {
   state.money -= park.unlockCost;
   park.unlocked = true;
   state.activeParkId = park.id;
-  updateHUD();
+  renderAll();
 }
 
 function enterPark(parkId) {
@@ -229,7 +233,7 @@ function enterPark(parkId) {
   parkModalTitle.textContent = park.name;
   renderParkScene(park);
   parkModal.classList.remove("hidden");
-  updateHUD();
+  renderAll();
 }
 
 function hireSkater() {
@@ -240,7 +244,7 @@ function hireSkater() {
   if (!skater) return;
   state.money -= cost;
   park.skaters.push(skater);
-  updateHUD();
+  renderAll();
 }
 
 function openBeer() {
@@ -248,7 +252,7 @@ function openBeer() {
   if (park.beer || state.money < BEER_COST) return;
   state.money -= BEER_COST;
   park.beer = true;
-  updateHUD();
+  renderAll();
 }
 
 function loop(timestamp) {
@@ -257,13 +261,13 @@ function loop(timestamp) {
   state.lastTime = timestamp;
   const income = getTotalIncome();
   state.money += income * delta;
-  updateHUD();
+  updateMoneyOnly();
   requestAnimationFrame(loop);
 }
 
 hireSkaterBtn.addEventListener("click", hireSkater);
 openBeerBtn.addEventListener("click", openBeer);
-skaterSelect.addEventListener("change", updateHUD);
+skaterSelect.addEventListener("change", renderAll);
 
 parksList.addEventListener("click", (event) => {
   const target = event.target.closest("button");
@@ -284,5 +288,5 @@ parkModal.addEventListener("click", (event) => {
 });
 
 renderSkaterSelect();
-updateHUD();
+renderAll();
 requestAnimationFrame(loop);
