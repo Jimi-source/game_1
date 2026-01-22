@@ -222,23 +222,42 @@ function updateHUD() {
   progressFill.style.width = `${(state.collected / state.total) * 100}%`;
 }
 
+function setLeaderboardStatus(message) {
+  leaderboardStatus.textContent = message;
+}
+
 async function loadLeaderboard() {
   if (window.location.protocol === "file:") {
-    leaderboardStatus.textContent =
-      "Открой игру через локальный сервер (http://), чтобы работала таблица.";
+    setLeaderboardStatus(
+      "Открой игру через локальный сервер (http://), чтобы работала таблица."
+    );
     leaderboardList.innerHTML = "";
     return;
   }
-  leaderboardStatus.textContent = "Загрузка...";
+  setLeaderboardStatus("Подключение к Firebase...");
   leaderboardList.innerHTML = "";
   try {
     const scoresQuery = query(scoresRef, orderBy("score", "desc"), limit(10));
     const snapshot = await getDocs(scoresQuery);
     if (snapshot.empty) {
-      leaderboardStatus.textContent = "Пока нет результатов.";
+      const fallbackSnap = await getDocs(query(scoresRef, limit(10)));
+      if (fallbackSnap.empty) {
+        setLeaderboardStatus("Пока нет результатов.");
+        return;
+      }
+      setLeaderboardStatus(`Без сортировки • записей: ${fallbackSnap.size}`);
+      fallbackSnap.forEach((doc) => {
+        const data = doc.data();
+        const item = document.createElement("li");
+        const name = data.name || "Player";
+        const score = data.score ?? 0;
+        const level = data.level ?? 1;
+        item.innerHTML = `<span>${name}</span><span>${score} • L${level}</span>`;
+        leaderboardList.appendChild(item);
+      });
       return;
     }
-    leaderboardStatus.textContent = "";
+    setLeaderboardStatus(`Записей: ${snapshot.size}`);
     snapshot.forEach((doc) => {
       const data = doc.data();
       const item = document.createElement("li");
@@ -249,9 +268,9 @@ async function loadLeaderboard() {
       leaderboardList.appendChild(item);
     });
   } catch (error) {
-    leaderboardStatus.textContent = `Ошибка загрузки таблицы: ${
+    setLeaderboardStatus(`Ошибка загрузки таблицы: ${
       error?.code || "unknown"
-    }`;
+    }`);
     console.error(error);
   }
 }
@@ -259,11 +278,11 @@ async function loadLeaderboard() {
 async function saveScore() {
   if (!state.playerName) return;
   if (window.location.protocol === "file:") {
-    leaderboardStatus.textContent =
-      "Нужен http(s) сервер, чтобы сохранить результат.";
+    setLeaderboardStatus("Нужен http(s) сервер, чтобы сохранить результат.");
     return;
   }
   try {
+    setLeaderboardStatus("Сохранение результата...");
     await addDoc(scoresRef, {
       name: state.playerName,
       score: state.score,
@@ -271,8 +290,12 @@ async function saveScore() {
       time: state.levelTime,
       createdAt: serverTimestamp(),
     });
+    setLeaderboardStatus("Результат сохранен.");
     loadLeaderboard();
   } catch (error) {
+    setLeaderboardStatus(`Ошибка сохранения: ${
+      error?.code || "unknown"
+    }`);
     console.error(error);
   }
 }
