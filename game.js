@@ -32,6 +32,9 @@ const hudLevel = document.getElementById("level");
 const hudTime = document.getElementById("time");
 const hudScore = document.getElementById("score");
 const progressFill = document.getElementById("progressFill");
+const energyFill = document.getElementById("energyFill");
+const energyValue = document.getElementById("energyValue");
+const tasksList = document.getElementById("tasksList");
 const overlay = document.getElementById("overlay");
 const startBtn = document.getElementById("startBtn");
 const levelComplete = document.getElementById("levelComplete");
@@ -106,6 +109,13 @@ const state = {
   shake: 0,
   frameDelta: 0,
   playerName: "",
+  maxEnergy: 100,
+  energy: 100,
+  energyDepleted: false,
+  movingInput: false,
+  trickCooldown: 0,
+  airTrickCount: 0,
+  tasks: [],
 };
 
 let audioCtx = null;
@@ -201,6 +211,33 @@ function buildLevel(levelIndex) {
   state.airTime = 0;
   state.hitCooldown = 0;
   state.shake = 0;
+  state.energy = state.maxEnergy;
+  state.energyDepleted = false;
+  state.trickCooldown = 0;
+  state.airTrickCount = 0;
+  const trickTarget = 2 + levelIndex * 2;
+  const jumpTarget = 1 + levelIndex;
+  state.tasks = [
+    {
+      type: "collect",
+      label: "Собери кружки",
+      value: 0,
+      target: state.total,
+    },
+    {
+      type: "trick",
+      label: "Трюки",
+      value: 0,
+      target: trickTarget,
+    },
+    {
+      type: "longjump",
+      label: "Длинные прыжки",
+      value: 0,
+      target: jumpTarget,
+    },
+  ];
+  renderTasks();
 
   hudTotal.textContent = state.total;
   hudCollected.textContent = "0";
@@ -220,10 +257,32 @@ function updateHUD() {
   hudScore.textContent = state.score;
   hudTime.textContent = `${state.levelTime.toFixed(1)}s`;
   progressFill.style.width = `${(state.collected / state.total) * 100}%`;
+  energyFill.style.width = `${(state.energy / state.maxEnergy) * 100}%`;
+  energyValue.textContent = Math.round(state.energy);
 }
 
 function setLeaderboardStatus(message) {
   leaderboardStatus.textContent = message;
+}
+
+function renderTasks() {
+  tasksList.innerHTML = "";
+  state.tasks.forEach((task) => {
+    const item = document.createElement("li");
+    item.innerHTML = `<span>${task.label}</span><span>${task.value}/${task.target}</span>`;
+    tasksList.appendChild(item);
+  });
+}
+
+function updateTask(type, amount = 1) {
+  const task = state.tasks.find((t) => t.type === type);
+  if (!task) return;
+  task.value = clamp(task.value + amount, 0, task.target);
+  renderTasks();
+}
+
+function areTasksComplete() {
+  return state.tasks.every((task) => task.value >= task.target);
 }
 
 async function loadLeaderboard() {
@@ -349,6 +408,9 @@ function playSound(type) {
   }
   if (type === "trick") {
     playTone({ freq: 820, duration: 0.18, type: "triangle", volume: 0.16 });
+  }
+  if (type === "energy") {
+    playTone({ freq: 320, duration: 0.12, type: "sine", volume: 0.12 });
   }
 }
 
@@ -541,12 +603,15 @@ function updatePlayer() {
     keys.has("KeyW") ||
     keys.has("Space") ||
     touchState.jump;
+  const canMove = state.energy > 0.5;
 
-  if (moveLeft) {
+  state.movingInput = moveLeft || moveRight;
+
+  if (moveLeft && canMove) {
     PLAYER.vx -= PLAYER.speed;
     PLAYER.direction = -1;
   }
-  if (moveRight) {
+  if (moveRight && canMove) {
     PLAYER.vx += PLAYER.speed;
     PLAYER.direction = 1;
   }
@@ -571,10 +636,14 @@ function updatePlayer() {
       playSound("trick");
       spawnParticles(PLAYER.x, PLAYER.y - 28);
     }
+    if (!PLAYER.onGround && state.airTime >= 0.6) {
+      updateTask("longjump", 1);
+    }
     PLAYER.y = groundY;
     PLAYER.vy = 0;
     PLAYER.onGround = true;
     state.airTime = 0;
+    state.airTrickCount = 0;
   } else {
     state.airTime += state.frameDelta;
   }
@@ -642,12 +711,15 @@ function checkBeerCollection() {
       mug.collected = true;
       collected += 1;
       state.score += 100;
+      state.energy = clamp(state.energy + 25, 0, state.maxEnergy);
       playSound("collect");
       spawnParticles(mug.x, mug.y - 10);
     }
   });
   if (collected !== state.collected) {
+    const diff = collected - state.collected;
     state.collected = collected;
+    updateTask("collect", diff);
     updateHUD();
   }
   if (state.collected === state.total && !state.levelComplete) {
@@ -657,7 +729,7 @@ function checkBeerCollection() {
 
 function checkFinish() {
   if (state.levelComplete) return;
-  if (state.collected < state.total) return;
+  if (!areTasksComplete()) return;
   const distance = Math.abs(PLAYER.x - state.finishX);
   if (distance < 60 && PLAYER.onGround) {
     completeLevel();
@@ -724,9 +796,25 @@ function loop(timestamp) {
   if (state.running) {
     state.levelTime += delta;
     state.totalTime += delta;
+    state.trickCooldown = Math.max(0, state.trickCooldown - delta);
     updatePlayer();
     updateCamera();
     updateParticles(delta);
+    if (state.movingInput && Math.abs(PLAYER.vx) > 0.2) {
+      const drain = 6 + Math.abs(PLAYER.vx) * 0.6;
+      state.energy = clamp(
+        state.energy - drain * state.frameDelta,
+        0,
+        state.maxEnergy
+      );
+      if (state.energy <= 0 && !state.energyDepleted) {
+        state.energyDepleted = true;
+        playSound("energy");
+      }
+    }
+    if (state.energy > 5) {
+      state.energyDepleted = false;
+    }
     checkBeerCollection();
     checkObstacles();
     checkFinish();
@@ -752,8 +840,21 @@ function startNextLevel() {
   state.lastTick = 0;
 }
 
+function performTrick(type) {
+  if (PLAYER.onGround) return;
+  if (state.trickCooldown > 0) return;
+  state.trickCooldown = 0.45;
+  state.score += type === "kick" ? 120 : 90;
+  state.airTrickCount += 1;
+  updateTask("trick", 1);
+  playSound("trick");
+  spawnParticles(PLAYER.x, PLAYER.y - 26);
+}
+
 window.addEventListener("keydown", (event) => {
   keys.add(event.code);
+  if (event.code === "KeyZ") performTrick("kick");
+  if (event.code === "KeyX") performTrick("heel");
 });
 
 window.addEventListener("keyup", (event) => {
@@ -782,6 +883,8 @@ document.querySelectorAll(".touch-controls .btn").forEach((btn) => {
   const action = btn.dataset.action;
   const start = (event) => {
     event.preventDefault();
+    if (action === "trick1") performTrick("kick");
+    if (action === "trick2") performTrick("heel");
     setTouch(action, true);
   };
   const end = (event) => {

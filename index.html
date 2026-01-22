@@ -36,8 +36,21 @@
         <div class="progress-bar">
           <div id="progressFill" class="progress-fill"></div>
         </div>
+        <div class="energy">
+          <div class="energy-label">
+            <span>Energy</span>
+            <span id="energyValue">100</span>
+          </div>
+          <div class="energy-bar">
+            <div id="energyFill" class="energy-fill"></div>
+          </div>
+        </div>
+        <div class="tasks">
+          <div class="tasks-title">Задания</div>
+          <ul id="tasksList"></ul>
+        </div>
         <div class="controls">
-          Управление: ←/→ или A/D — ехать, ↑/W/Space — прыжок
+          Управление: ←/→ или A/D — ехать, ↑/W/Space — прыжок, Z/X — трюки
         </div>
       </div>
     </div>
@@ -74,6 +87,8 @@
       <button class="btn left" data-action="left">◀</button>
       <button class="btn right" data-action="right">▶</button>
       <button class="btn jump" data-action="jump">⤴</button>
+      <button class="btn trick1" data-action="trick1">Z</button>
+      <button class="btn trick2" data-action="trick2">X</button>
     </div>
     <canvas id="game"></canvas>
     <script type="module" src="./game.js"></script>
