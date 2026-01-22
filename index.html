@@ -72,20 +72,27 @@
 
         <section class="panel right">
           <div class="panel-title">Карта города</div>
-          <div id="parkView" class="park-view">
-            <div class="park-view-title">Парк внутри</div>
-            <div class="park-view-row">
-              <div class="park-view-label">Шоу</div>
-              <div id="parkViewShow" class="park-view-scene"></div>
-            </div>
-            <div class="park-view-row">
-              <div class="park-view-label">Пивнуха</div>
-              <div id="parkViewBeer" class="park-view-scene"></div>
-            </div>
-          </div>
           <div id="parksList" class="parks-list"></div>
         </section>
       </main>
+    </div>
+
+    <div id="parkModal" class="park-modal hidden">
+      <div class="park-modal-content">
+        <div class="park-modal-header">
+          <div id="parkModalTitle" class="park-modal-title">Park</div>
+          <button id="parkModalClose" class="icon-btn">Закрыть</button>
+        </div>
+        <div class="park-scene">
+          <div class="park-scene-sky"></div>
+          <div class="park-scene-ground"></div>
+          <div class="park-scene-ramp"></div>
+          <div class="park-scene-rail"></div>
+          <div id="parkSceneSkaters" class="park-scene-skaters"></div>
+          <div id="parkSceneCrowd" class="park-scene-crowd"></div>
+          <div id="parkSceneBeer" class="park-scene-beer"></div>
+        </div>
+      </div>
     </div>
 
     <script src="./game.js"></script>

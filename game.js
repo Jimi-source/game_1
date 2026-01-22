@@ -13,8 +13,12 @@ const openBeerBtn = document.getElementById("openBeerBtn");
 const openBeerCost = document.getElementById("openBeerCost");
 const skaterSelect = document.getElementById("skaterSelect");
 const parksList = document.getElementById("parksList");
-const parkViewShow = document.getElementById("parkViewShow");
-const parkViewBeer = document.getElementById("parkViewBeer");
+const parkModal = document.getElementById("parkModal");
+const parkModalClose = document.getElementById("parkModalClose");
+const parkModalTitle = document.getElementById("parkModalTitle");
+const parkSceneSkaters = document.getElementById("parkSceneSkaters");
+const parkSceneCrowd = document.getElementById("parkSceneCrowd");
+const parkSceneBeer = document.getElementById("parkSceneBeer");
 
 const PARKS = [
   { id: 0, name: "Central Plaza", unlockCost: 0, spectators: 35 },
@@ -155,61 +159,48 @@ function renderSkaterSelect() {
   });
 }
 
-function renderParkView() {
-  const park = getPark(state.activeParkId);
-  parkViewShow.innerHTML = "";
-  parkViewBeer.innerHTML = "";
-
-  const floor = document.createElement("div");
-  floor.className = "park-floor";
-  parkViewShow.appendChild(floor);
-  const rail = document.createElement("div");
-  rail.className = "park-rail";
-  parkViewShow.appendChild(rail);
-  const ramp = document.createElement("div");
-  ramp.className = "park-ramp";
-  parkViewShow.appendChild(ramp);
+function renderParkScene(park) {
+  parkSceneSkaters.innerHTML = "";
+  parkSceneCrowd.innerHTML = "";
+  parkSceneBeer.innerHTML = "";
 
   const showSkaters = park.skaters.length + 1;
   for (let i = 0; i < showSkaters; i += 1) {
     const skater = document.createElement("div");
-    skater.className = "skater";
-    skater.style.left = `${12 + i * 40}px`;
-    skater.style.animationDelay = `${i * 0.4}s`;
+    skater.className = "scene-skater";
+    skater.style.left = `${i * 90}px`;
+    skater.style.animationDelay = `${i * 0.6}s`;
     skater.innerHTML = `
       <span class="head"></span>
-      <span class="body"></span>
-      <span class="arm"></span>
-      <span class="arm right"></span>
+      <span class="torso"></span>
+      <span class="leg left"></span>
+      <span class="leg right"></span>
       <span class="board"></span>
     `;
-    parkViewShow.appendChild(skater);
+    parkSceneSkaters.appendChild(skater);
   }
 
-  const crowd = document.createElement("div");
-  crowd.className = "crowd";
-  const crowdCount = Math.min(park.spectators, 8);
+  const crowdCount = Math.min(park.spectators, 10);
   for (let i = 0; i < crowdCount; i += 1) {
     const spectator = document.createElement("div");
-    spectator.className = "spectator";
-    spectator.style.height = `${14 + (i % 3) * 4}px`;
-    crowd.appendChild(spectator);
+    spectator.className = "scene-spectator";
+    spectator.style.opacity = `${0.7 + (i % 3) * 0.1}`;
+    parkSceneCrowd.appendChild(spectator);
   }
-  parkViewShow.appendChild(crowd);
 
   if (park.beer) {
     const beer = document.createElement("div");
-    beer.className = "beer-stand";
+    beer.className = "scene-beer-stand";
     beer.textContent = "BEER";
-    parkViewBeer.appendChild(beer);
+    parkSceneBeer.appendChild(beer);
     const seat = document.createElement("div");
-    seat.className = "beer-seat";
-    parkViewBeer.appendChild(seat);
+    seat.className = "scene-beer-seat";
+    parkSceneBeer.appendChild(seat);
   } else {
     const off = document.createElement("div");
-    off.className = "beer-off";
+    off.className = "scene-beer-off";
     off.textContent = "Пивнуха закрыта";
-    parkViewBeer.appendChild(off);
+    parkSceneBeer.appendChild(off);
   }
 }
 
@@ -217,7 +208,6 @@ function updateHUD() {
   moneyEl.textContent = formatMoney(state.money);
   incomeEl.textContent = formatRate(getTotalIncome());
   renderActivePark();
-  renderParkView();
   renderParks();
 }
 
@@ -235,6 +225,9 @@ function enterPark(parkId) {
   const park = getPark(parkId);
   if (!park || !park.unlocked) return;
   state.activeParkId = park.id;
+  parkModalTitle.textContent = park.name;
+  renderParkScene(park);
+  parkModal.classList.remove("hidden");
   updateHUD();
 }
 
@@ -277,6 +270,16 @@ parksList.addEventListener("click", (event) => {
   const parkId = Number(target.dataset.id);
   if (target.dataset.action === "unlock") unlockPark(parkId);
   if (target.dataset.action === "enter") enterPark(parkId);
+});
+
+parkModalClose.addEventListener("click", () => {
+  parkModal.classList.add("hidden");
+});
+
+parkModal.addEventListener("click", (event) => {
+  if (event.target === parkModal) {
+    parkModal.classList.add("hidden");
+  }
 });
 
 renderSkaterSelect();
