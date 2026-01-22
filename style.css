@@ -208,7 +208,7 @@ body {
 }
 
 .park-view {
-  background: rgba(15, 23, 42, 0.6);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.4));
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 16px;
   padding: 12px;
@@ -234,79 +234,200 @@ body {
 }
 
 .park-view-scene {
-  min-height: 64px;
-  background: rgba(30, 41, 59, 0.5);
-  border: 1px dashed rgba(148, 163, 184, 0.25);
+  min-height: 120px;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.1), rgba(15, 23, 42, 0.6));
+  border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 12px;
-  padding: 8px;
+  padding: 10px;
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.skater-icon {
-  width: 34px;
-  height: 24px;
+  flex-wrap: nowrap;
+  align-items: flex-end;
   position: relative;
+  overflow: hidden;
 }
 
-.skater-icon .head {
-  width: 8px;
-  height: 8px;
+.park-floor {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12px;
+  height: 14px;
+  background: linear-gradient(90deg, #0f172a, #1f2937, #0f172a);
+  opacity: 0.8;
+}
+
+.park-rail {
+  position: absolute;
+  left: 18%;
+  bottom: 30px;
+  width: 80px;
+  height: 6px;
+  background: #64748b;
+  border-radius: 999px;
+}
+
+.park-ramp {
+  position: absolute;
+  right: 12%;
+  bottom: 12px;
+  width: 70px;
+  height: 30px;
+  background: linear-gradient(180deg, #1f2937, #0f172a);
+  border-radius: 14px 14px 4px 4px;
+}
+
+.skater {
+  position: absolute;
+  bottom: 20px;
+  width: 44px;
+  height: 60px;
+  animation: skateMove 6s linear infinite;
+}
+
+.skater:nth-child(2n) {
+  animation-duration: 7s;
+  opacity: 0.85;
+}
+
+.skater .head {
+  width: 10px;
+  height: 10px;
   background: #e2e8f0;
   border-radius: 50%;
   position: absolute;
-  left: 2px;
+  left: 16px;
   top: 0;
 }
 
-.skater-icon .body {
-  width: 12px;
-  height: 8px;
+.skater .body {
+  width: 14px;
+  height: 18px;
   background: #e2e8f0;
-  border-radius: 4px;
-  position: absolute;
-  left: 0;
-  top: 8px;
-}
-
-.skater-icon .board {
-  width: 32px;
-  height: 6px;
-  background: #38bdf8;
   border-radius: 6px;
   position: absolute;
-  left: 0;
+  left: 14px;
+  top: 12px;
+}
+
+.skater .board {
+  width: 40px;
+  height: 6px;
+  background: #38bdf8;
+  border-radius: 999px;
+  position: absolute;
+  left: 2px;
   bottom: 0;
 }
 
-.spectator-dot {
-  width: 6px;
-  height: 6px;
-  background: #f59e0b;
-  border-radius: 50%;
+.skater .arm {
+  width: 12px;
+  height: 4px;
+  background: #e2e8f0;
+  position: absolute;
+  top: 18px;
+  left: 2px;
+  border-radius: 4px;
 }
 
-.beer-icon {
-  width: 26px;
-  height: 32px;
-  border-radius: 6px;
-  background: #fbbf24;
+.skater .arm.right {
+  left: auto;
+  right: 2px;
+}
+
+.crowd {
+  position: absolute;
+  right: 8px;
+  bottom: 26px;
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.spectator {
+  width: 10px;
+  height: 18px;
+  background: #facc15;
+  border-radius: 6px 6px 4px 4px;
   position: relative;
-  box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.6);
 }
 
-.beer-icon::after {
+.spectator::after {
   content: "";
   position: absolute;
-  right: -6px;
-  top: 8px;
-  width: 10px;
-  height: 14px;
-  border: 2px solid rgba(245, 158, 11, 0.8);
+  width: 6px;
+  height: 6px;
+  background: #fde68a;
+  border-radius: 50%;
+  top: -6px;
+  left: 2px;
+}
+
+.beer-stand {
+  position: absolute;
+  left: 8px;
+  bottom: 22px;
+  width: 84px;
+  height: 34px;
+  background: linear-gradient(180deg, #f59e0b, #b45309);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 12px;
+  box-shadow: inset 0 0 0 2px rgba(120, 53, 15, 0.6);
+}
+
+.beer-stand::after {
+  content: "";
+  position: absolute;
+  right: -10px;
+  top: 6px;
+  width: 14px;
+  height: 20px;
+  border: 3px solid rgba(120, 53, 15, 0.8);
   border-left: none;
   border-radius: 0 10px 10px 0;
+}
+
+.beer-seat {
+  position: absolute;
+  left: 110px;
+  bottom: 26px;
+  width: 60px;
+  height: 18px;
+  background: #1f2937;
+  border-radius: 8px;
+}
+
+.beer-seat::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: -10px;
+  width: 10px;
+  height: 14px;
+  background: #facc15;
+  border-radius: 4px;
+}
+
+.beer-off {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+@keyframes skateMove {
+  0% {
+    transform: translateX(-20px) translateY(0);
+  }
+  50% {
+    transform: translateX(140px) translateY(-8px);
+  }
+  100% {
+    transform: translateX(280px) translateY(0);
+  }
 }
 
 .park-item {

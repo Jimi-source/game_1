@@ -160,27 +160,56 @@ function renderParkView() {
   parkViewShow.innerHTML = "";
   parkViewBeer.innerHTML = "";
 
+  const floor = document.createElement("div");
+  floor.className = "park-floor";
+  parkViewShow.appendChild(floor);
+  const rail = document.createElement("div");
+  rail.className = "park-rail";
+  parkViewShow.appendChild(rail);
+  const ramp = document.createElement("div");
+  ramp.className = "park-ramp";
+  parkViewShow.appendChild(ramp);
+
   const showSkaters = park.skaters.length + 1;
   for (let i = 0; i < showSkaters; i += 1) {
-    const icon = document.createElement("div");
-    icon.className = "skater-icon";
-    icon.innerHTML = `<span class="head"></span><span class="body"></span><span class="board"></span>`;
-    parkViewShow.appendChild(icon);
+    const skater = document.createElement("div");
+    skater.className = "skater";
+    skater.style.left = `${12 + i * 40}px`;
+    skater.style.animationDelay = `${i * 0.4}s`;
+    skater.innerHTML = `
+      <span class="head"></span>
+      <span class="body"></span>
+      <span class="arm"></span>
+      <span class="arm right"></span>
+      <span class="board"></span>
+    `;
+    parkViewShow.appendChild(skater);
   }
 
-  const crowdDots = Math.min(park.spectators, 16);
-  for (let i = 0; i < crowdDots; i += 1) {
-    const dot = document.createElement("div");
-    dot.className = "spectator-dot";
-    parkViewShow.appendChild(dot);
+  const crowd = document.createElement("div");
+  crowd.className = "crowd";
+  const crowdCount = Math.min(park.spectators, 8);
+  for (let i = 0; i < crowdCount; i += 1) {
+    const spectator = document.createElement("div");
+    spectator.className = "spectator";
+    spectator.style.height = `${14 + (i % 3) * 4}px`;
+    crowd.appendChild(spectator);
   }
+  parkViewShow.appendChild(crowd);
 
   if (park.beer) {
     const beer = document.createElement("div");
-    beer.className = "beer-icon";
+    beer.className = "beer-stand";
+    beer.textContent = "BEER";
     parkViewBeer.appendChild(beer);
+    const seat = document.createElement("div");
+    seat.className = "beer-seat";
+    parkViewBeer.appendChild(seat);
   } else {
-    parkViewBeer.textContent = "Пивнуха закрыта";
+    const off = document.createElement("div");
+    off.className = "beer-off";
+    off.textContent = "Пивнуха закрыта";
+    parkViewBeer.appendChild(off);
   }
 }
 
