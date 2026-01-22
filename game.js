@@ -126,6 +126,7 @@ function renderParks() {
           <div class="park-title">${park.name}</div>
           <div class="park-meta">
             Зрители: ${park.spectators} · Скейтеры: ${park.skaters.length}
+            ${isActive ? '<span class="park-badge">Активный</span>' : ""}
           </div>
         </div>
         <div>${park.unlocked ? "Открыт" : "Закрыт"}</div>
@@ -136,7 +137,7 @@ function renderParks() {
           ${
             park.unlocked
               ? `<button class="primary" data-action="enter" data-id="${park.id}">
-                  ${isActive ? "Активен" : "Войти"}
+                  Войти в парк
                 </button>`
               : `<button data-action="unlock" data-id="${park.id}">
                   Открыть за ${formatMoney(park.unlockCost)}
