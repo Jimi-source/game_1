@@ -578,14 +578,19 @@ function renderTasks() {
 }
 
 function renderSegmentBars() {
-  const tasks = state.tasksClustered;
-  const assigned = state.assigned;
   const byWh = { "MSK-1": { total: 0, assigned: 0 }, "MSK-2": { total: 0, assigned: 0 } };
-  tasks.forEach((t) => {
-    if (byWh[t.warehouse]) {
-      byWh[t.warehouse].total += 1;
-      if (assigned.has(t.id)) byWh[t.warehouse].assigned += 1;
-    }
+  state.boxes.forEach((b) => {
+    if (byWh[b.warehouse]) byWh[b.warehouse].total += 1;
+  });
+  const boxesById = new Map(state.boxes.map((b) => [b.id, b]));
+  state.tasksClustered.forEach((t) => {
+    if (!state.assigned.has(t.id)) return;
+    t.boxIds.forEach((id) => {
+      const box = boxesById.get(id);
+      if (box && byWh[box.warehouse]) {
+        byWh[box.warehouse].assigned += 1;
+      }
+    });
   });
   const pct1 = byWh["MSK-1"].total
     ? (byWh["MSK-1"].assigned / byWh["MSK-1"].total) * 100
