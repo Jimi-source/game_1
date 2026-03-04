@@ -75,13 +75,20 @@ function randInt(min, max) {
 function generateBoxes() {
   const orderSize = randInt(2000, 3000);
   const boxes = [];
-  const uniqueSkuCount = randInt(25, 40);
+  const uniqueSkuCount = randInt(70, 130);
   const skuDefs = [];
   for (let i = 0; i < uniqueSkuCount; i += 1) {
     const skuGroup = randItem(SKU_GROUPS);
-    const skuId = `${skuGroup}-${randInt(100, 999)}`;
-    const baseZoneIndex = randInt(0, ZONES.length - 1);
-    skuDefs.push({ skuId, skuGroup, baseZoneIndex });
+    const skuId = `${skuGroup}-${randInt(100, 9999)}`;
+    const numZones = Math.random() < 0.6 ? 1 : randInt(2, 3);
+    const pool = ZONES.map((_, idx) => idx);
+    const zoneIndices = [];
+    for (let z = 0; z < numZones && pool.length > 0; z += 1) {
+      const idx = Math.floor(Math.random() * pool.length);
+      zoneIndices.push(pool.splice(idx, 1)[0]);
+    }
+    if (zoneIndices.length === 0) zoneIndices.push(0);
+    skuDefs.push({ skuId, skuGroup, zoneIndices });
   }
 
   const ratioMsk1 = 0.4 + Math.random() * 0.2;
@@ -109,8 +116,12 @@ function generateBoxes() {
     return cell;
   }
 
-  function createTrayForSku(def) {
-    const zone = ZONES[def.baseZoneIndex];
+  function createTrayForSku(def, forceZoneIndex = null) {
+    const zoneIndex =
+      forceZoneIndex != null
+        ? def.zoneIndices[forceZoneIndex % def.zoneIndices.length]
+        : randItem(def.zoneIndices);
+    const zone = ZONES[zoneIndex];
     const cell = getCellForZone(zone);
     const trayId = `TRAY-${trays.length + 1}`;
     const tray = {
@@ -125,16 +136,79 @@ function generateBoxes() {
     return tray;
   }
 
+  function skuDefsForZones(zoneSet) {
+    return skuDefs.filter((d) =>
+      d.zoneIndices.some((zi) => zoneSet.has(ZONES[zi]))
+    );
+  }
+
   for (let i = 0; i < orderSize; i += 1) {
-    const volume = randInt(5, 14);
-    const hasDuplicate = Math.random() < 0.05 && volume >= 2;
-    const items = [];
+    const r = Math.random();
+    let volume;
+    let items = [];
     const zoneSet = new Set();
 
-    if (hasDuplicate) {
+    if (r < 0.18) {
+      const oneZone = ZONES[randInt(0, ZONES.length - 1)];
+      const allowed = skuDefsForZones(new Set([oneZone]));
+      if (allowed.length === 0) {
+        volume = randInt(2, 10);
+        const def = randItem(skuDefs);
+        for (let p = 0; p < volume; p += 1) {
+          const t = createTrayForSku(def);
+          items.push({
+            trayId: t.trayId,
+            skuId: t.skuId,
+            skuGroup: t.skuGroup,
+            zone: t.zone,
+            cellId: t.cellId,
+          });
+          zoneSet.add(t.zone);
+        }
+      } else {
+        volume = randInt(2, 14);
+        const zoneIdx = ZONES.indexOf(oneZone);
+        for (let p = 0; p < volume; p += 1) {
+          const def = randItem(allowed);
+          const forceIdx = def.zoneIndices.indexOf(zoneIdx);
+          const t = createTrayForSku(def, forceIdx >= 0 ? forceIdx : null);
+          items.push({
+            trayId: t.trayId,
+            skuId: t.skuId,
+            skuGroup: t.skuGroup,
+            zone: t.zone,
+            cellId: t.cellId,
+          });
+          zoneSet.add(t.zone);
+        }
+      }
+    } else if (r < 0.42) {
+      const twoZones = [];
+      const [a, b] = [randInt(0, ZONES.length - 1), randInt(0, ZONES.length - 1)];
+      twoZones.push(a);
+      if (a !== b) twoZones.push(b);
+      const zoneSetAllowed = new Set(twoZones.map((idx) => ZONES[idx]));
+      const allowed = skuDefsForZones(zoneSetAllowed);
+      volume = randInt(3, 16);
+      for (let p = 0; p < volume; p += 1) {
+        const def = allowed.length ? randItem(allowed) : randItem(skuDefs);
+        const t = createTrayForSku(def);
+        items.push({
+          trayId: t.trayId,
+          skuId: t.skuId,
+          skuGroup: t.skuGroup,
+          zone: t.zone,
+          cellId: t.cellId,
+        });
+        zoneSet.add(t.zone);
+      }
+    } else {
+      volume = randInt(3, 22);
+      const hasDuplicate = Math.random() < 0.06 && volume >= 2;
       const indices = [];
       for (let idx = 0; idx < skuDefs.length; idx += 1) indices.push(idx);
-      for (let p = 0; p < volume - 1; p += 1) {
+      const take = hasDuplicate ? volume - 1 : volume;
+      for (let p = 0; p < take; p += 1) {
         const pickIdx = Math.floor(Math.random() * indices.length);
         const skuIndex = indices.splice(pickIdx, 1)[0];
         const def = skuDefs[skuIndex];
@@ -148,33 +222,18 @@ function generateBoxes() {
         });
         zoneSet.add(tray.zone);
       }
-      const dupItem = randItem(items);
-      const dupDef = skuDefs.find((d) => d.skuId === dupItem.skuId) || skuDefs[0];
-      const dupTray = createTrayForSku(dupDef);
-      items.push({
-        trayId: dupTray.trayId,
-        skuId: dupTray.skuId,
-        skuGroup: dupTray.skuGroup,
-        zone: dupTray.zone,
-        cellId: dupTray.cellId,
-      });
-      zoneSet.add(dupTray.zone);
-    } else {
-      const indices = [];
-      for (let idx = 0; idx < skuDefs.length; idx += 1) indices.push(idx);
-      for (let p = 0; p < volume; p += 1) {
-        const pickIdx = Math.floor(Math.random() * indices.length);
-        const skuIndex = indices.splice(pickIdx, 1)[0];
-        const def = skuDefs[skuIndex];
-        const tray = createTrayForSku(def);
+      if (hasDuplicate) {
+        const dupItem = randItem(items);
+        const dupDef = skuDefs.find((d) => d.skuId === dupItem.skuId) || skuDefs[0];
+        const dupTray = createTrayForSku(dupDef);
         items.push({
-          trayId: tray.trayId,
-          skuId: tray.skuId,
-          skuGroup: tray.skuGroup,
-          zone: tray.zone,
-          cellId: tray.cellId,
+          trayId: dupTray.trayId,
+          skuId: dupTray.skuId,
+          skuGroup: dupTray.skuGroup,
+          zone: dupTray.zone,
+          cellId: dupTray.cellId,
         });
-        zoneSet.add(tray.zone);
+        zoneSet.add(dupTray.zone);
       }
     }
 
