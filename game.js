@@ -337,6 +337,14 @@ function getChunkSettings() {
   };
 }
 
+/**
+ * Кол-во чанков (countTarget):
+ * - N заданий НА КАЖДЫЙ из 4 сегментов (MSK-1 Утро, MSK-1 День, MSK-2 Утро, MSK-2 День).
+ * - 1 чанк → 4 задания всего; 2 чанка → 8 заданий; 3 чанка → 12 заданий; всего = 4 × N.
+ * - При заданном N: распределение коробок по заданиям — баланс по ящикам (примерно одинаковое кол-во уникальных ячеек в каждом задании).
+ * - Если поле пустое: оптимальное число заданий по объёму сегмента (≈ лотков_сегмента / 240).
+ */
+
 function assignClustered(boxesToCluster, startTaskId = 1) {
   const boxes = boxesToCluster ?? state.boxes;
   const tasks = [];
@@ -347,12 +355,13 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
   const { boxesTarget, volumeTarget, countTarget } = getChunkSettings();
   const MAX_TRAYS_PER_TASK = 6 * 40;
 
-  const segments =
-    countTarget != null && countTarget > 0
-      ? FIXED_SEGMENT_KEYS.map((key) => [key, bySeg.get(key) || []])
-      : Array.from(bySeg.entries());
+  const useFixedSegments = countTarget != null && countTarget > 0;
+  const segments = useFixedSegments
+    ? FIXED_SEGMENT_KEYS.map((key) => [key, bySeg.get(key) || []])
+    : Array.from(bySeg.entries());
+
   const chunksPerSegment = [];
-  if (countTarget != null && countTarget > 0) {
+  if (useFixedSegments) {
     segments.forEach(() => chunksPerSegment.push(countTarget));
   } else {
     segments.forEach(([, segBoxes]) => {
