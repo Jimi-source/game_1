@@ -398,69 +398,80 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
           Math.round(totalVolumeSeg / Math.max(1, effectiveCount || 1))
         )
       : null;
-    const oneChunkMode = countTarget && effectiveCount === 1;
+    const oneChunkMode = countTarget != null && countTarget > 0 && effectiveCount === 1;
+    const strictChunkCount = countTarget != null && countTarget > 0;
 
+    let tasksCreatedThisSegment = 0;
     while (unassigned.size > 0) {
-      const seed = unassigned.values().next().value;
-      unassigned.delete(seed);
-      const cluster = [seed];
-      const clusterZones = new Set(seed.zones);
-      const zoneTrayCounts = new Map();
-      if (Array.isArray(seed.items)) {
-        seed.items.forEach((item) => {
-          const prev = zoneTrayCounts.get(item.zone) || 0;
-          zoneTrayCounts.set(item.zone, prev + 1);
-        });
-      }
-      let clusterVol = seed.volume;
-      const cand = Array.from(unassigned);
-      cand.sort((a, b) => b.zones.length - a.zones.length);
-      for (const box of cand) {
-        if (cluster.length >= maxBoxes) break;
-        if (volumeCap && clusterVol >= volumeCap) break;
-        const boxZones = new Set(box.zones);
-        const simZones = jaccard(clusterZones, boxZones);
-        if (!oneChunkMode && simZones < 0.4) continue;
-        if (!oneChunkMode) {
-          const boxZoneCounts = new Map();
-          if (Array.isArray(box.items)) {
-            box.items.forEach((item) => {
-              const prev = boxZoneCounts.get(item.zone) || 0;
-              boxZoneCounts.set(item.zone, prev + 1);
-            });
-          }
-          let exceedsCapacity = false;
-          boxZoneCounts.forEach((cnt, zone) => {
-            const current = zoneTrayCounts.get(zone) || 0;
-            if (current + cnt > 40) {
-              exceedsCapacity = true;
-            }
-          });
-          if (exceedsCapacity) continue;
-          boxZoneCounts.forEach((cnt, zone) => {
-            const prev = zoneTrayCounts.get(zone) || 0;
-            zoneTrayCounts.set(zone, prev + cnt);
-          });
-        } else if (Array.isArray(box.items)) {
-          box.items.forEach((item) => {
+      let cluster;
+      if (strictChunkCount && tasksCreatedThisSegment >= effectiveCount - 1) {
+        cluster = Array.from(unassigned);
+        unassigned.clear();
+      } else {
+        const seed = unassigned.values().next().value;
+        unassigned.delete(seed);
+        cluster = [seed];
+        const clusterZones = new Set(seed.zones);
+        const zoneTrayCounts = new Map();
+        if (Array.isArray(seed.items)) {
+          seed.items.forEach((item) => {
             const prev = zoneTrayCounts.get(item.zone) || 0;
             zoneTrayCounts.set(item.zone, prev + 1);
           });
         }
-        cluster.push(box);
-        clusterVol += box.volume;
-        box.zones.forEach((z) => clusterZones.add(z));
-        unassigned.delete(box);
+        let clusterVol = seed.volume;
+        const cand = Array.from(unassigned);
+        cand.sort((a, b) => b.zones.length - a.zones.length);
+        for (const box of cand) {
+          if (cluster.length >= maxBoxes) break;
+          if (volumeCap && clusterVol >= volumeCap) break;
+          const boxZones = new Set(box.zones);
+          const simZones = jaccard(clusterZones, boxZones);
+          if (!oneChunkMode && simZones < 0.4) continue;
+          if (!oneChunkMode) {
+            const boxZoneCounts = new Map();
+            if (Array.isArray(box.items)) {
+              box.items.forEach((item) => {
+                const prev = boxZoneCounts.get(item.zone) || 0;
+                boxZoneCounts.set(item.zone, prev + 1);
+              });
+            }
+            let exceedsCapacity = false;
+            boxZoneCounts.forEach((cnt, zone) => {
+              const current = zoneTrayCounts.get(zone) || 0;
+              if (current + cnt > 40) {
+                exceedsCapacity = true;
+              }
+            });
+            if (exceedsCapacity) continue;
+            boxZoneCounts.forEach((cnt, zone) => {
+              const prev = zoneTrayCounts.get(zone) || 0;
+              zoneTrayCounts.set(zone, prev + cnt);
+            });
+          } else if (Array.isArray(box.items)) {
+            box.items.forEach((item) => {
+              const prev = zoneTrayCounts.get(item.zone) || 0;
+              zoneTrayCounts.set(item.zone, prev + 1);
+            });
+          }
+          cluster.push(box);
+          clusterVol += box.volume;
+          box.zones.forEach((z) => clusterZones.add(z));
+          unassigned.delete(box);
+        }
       }
+      const clusterZonesForJaccard = new Set();
+      cluster.forEach((b) => b.zones.forEach((z) => clusterZonesForJaccard.add(z)));
       const task = makeTask(`C-${taskId}`, cluster);
       const sims = cluster.map((b) => {
         const z = new Set(b.zones);
-        return jaccard(clusterZones, z);
+        return jaccard(clusterZonesForJaccard, z);
       });
       task.jaccardAvg =
         sims.reduce((sum, v) => sum + v, 0) / Math.max(1, sims.length);
       tasks.push(task);
       taskId += 1;
+      tasksCreatedThisSegment += 1;
     }
   });
   return tasks;
