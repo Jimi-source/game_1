@@ -355,26 +355,57 @@ function assignClustered() {
   const chunksPerSegment = [];
   if (countTarget && totalBoxes > 0) {
     const segSizes = segments.map(([, boxes]) => boxes.length);
+    const segKeys = segments.map(([key]) => key);
     const totalSegs = segments.length;
     const total = segSizes.reduce((a, b) => a + b, 0);
     const totalChunks = Math.max(countTarget, totalSegs);
-    const remaining = totalChunks - totalSegs;
-    if (remaining <= 0) {
-      segments.forEach(() => chunksPerSegment.push(1));
-    } else {
-      let sum = 0;
-      segSizes.forEach((size, i) => {
-        const extra = i < totalSegs - 1
-          ? Math.round((remaining * size) / total)
-          : remaining - sum;
-        chunksPerSegment.push(1 + Math.max(0, extra));
-        sum += Math.max(0, extra);
-      });
-      let s = chunksPerSegment.reduce((a, b) => a + b, 0);
-      if (s !== totalChunks && chunksPerSegment.length > 0) {
-        const idx = chunksPerSegment.indexOf(Math.max(...chunksPerSegment));
-        chunksPerSegment[idx] = Math.max(1, chunksPerSegment[idx] + totalChunks - s);
-      }
+    const warehouses = [...new Set(segKeys.map((k) => k.split("::")[0]))];
+    const whBoxCount = {};
+    segKeys.forEach((k, i) => {
+      const wh = k.split("::")[0];
+      whBoxCount[wh] = (whBoxCount[wh] || 0) + segSizes[i];
+    });
+    const totalByWh = Object.values(whBoxCount).reduce((a, b) => a + b, 0);
+    const chunksPerWh = {};
+    warehouses.forEach((wh) => {
+      const share = totalByWh > 0
+        ? Math.round((totalChunks * (whBoxCount[wh] || 0)) / totalByWh)
+        : 0;
+      chunksPerWh[wh] = Math.max(1, share);
+    });
+    let whSum = warehouses.reduce((s, wh) => s + chunksPerWh[wh], 0);
+    while (whSum !== totalChunks && warehouses.length > 0) {
+      const idx = whSum > totalChunks
+        ? warehouses.indexOf(warehouses.reduce((a, b) => chunksPerWh[a] >= chunksPerWh[b] ? a : b))
+        : warehouses.indexOf(warehouses.reduce((a, b) => chunksPerWh[a] <= chunksPerWh[b] ? a : b));
+      const wh = warehouses[idx];
+      chunksPerWh[wh] = Math.max(1, chunksPerWh[wh] + totalChunks - whSum);
+      whSum = warehouses.reduce((s, w) => s + chunksPerWh[w], 0);
+    }
+    segments.forEach(([, boxes], i) => {
+      const wh = segKeys[i].split("::")[0];
+      const whSegIndices = segKeys
+        .map((k, idx) => (k.split("::")[0] === wh ? idx : -1))
+        .filter((idx) => idx >= 0);
+      const whSegSizes = whSegIndices.map((idx) => segSizes[idx]);
+      const whSegTotal = whSegSizes.reduce((a, b) => a + b, 0);
+      const whChunks = chunksPerWh[wh] || 1;
+      const c = whSegTotal > 0
+        ? Math.max(1, Math.round((whChunks * boxes.length) / whSegTotal))
+        : 1;
+      chunksPerSegment.push(c);
+    });
+    let s = chunksPerSegment.reduce((a, b) => a + b, 0);
+    while (s > totalChunks) {
+      const i = chunksPerSegment.reduce((best, c, idx) => (c > (chunksPerSegment[best] || 0) ? idx : best), 0);
+      if (chunksPerSegment[i] <= 1) break;
+      chunksPerSegment[i] -= 1;
+      s -= 1;
+    }
+    while (s < totalChunks) {
+      const i = chunksPerSegment.reduce((best, c, idx) => (c < (chunksPerSegment[best] || Infinity) ? idx : best), 0);
+      chunksPerSegment[i] += 1;
+      s += 1;
     }
   }
 
