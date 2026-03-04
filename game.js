@@ -421,6 +421,7 @@ function openAssignModal() {
         />
       </td>
       <td>${task.id}</td>
+      <td>${task.warehouse}</td>
       <td>${task.boxIds.length}</td>
       <td>${totalVolume}</td>
       <td>${task.zones.length}</td>

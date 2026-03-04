@@ -420,6 +420,19 @@ body {
   gap: 8px;
 }
 
+.assign-modal-table-wrap {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.assign-modal-table-wrap .table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  z-index: 1;
+  box-shadow: 0 1px 0 #e2e8f0;
+}
+
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
