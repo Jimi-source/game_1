@@ -401,6 +401,58 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
     const oneChunkMode = countTarget != null && countTarget > 0 && effectiveCount === 1;
     const strictChunkCount = countTarget != null && countTarget > 0;
 
+    function getBoxCellCount(box) {
+      const s = new Set();
+      if (Array.isArray(box.items)) {
+        box.items.forEach((item) => {
+          if (item.cellId) s.add(item.cellId);
+        });
+      }
+      return s.size;
+    }
+
+    if (strictChunkCount) {
+      const clusters = Array.from({ length: effectiveCount }, () => []);
+      const clusterCellIds = Array.from(
+        { length: effectiveCount },
+        () => new Set()
+      );
+      const boxesSorted = [...segBoxes].sort(
+        (a, b) => getBoxCellCount(b) - getBoxCellCount(a)
+      );
+      boxesSorted.forEach((box) => {
+        let bestIdx = 0;
+        let bestSize = clusterCellIds[0].size;
+        for (let j = 1; j < effectiveCount; j += 1) {
+          if (clusterCellIds[j].size < bestSize) {
+            bestSize = clusterCellIds[j].size;
+            bestIdx = j;
+          }
+        }
+        clusters[bestIdx].push(box);
+        if (Array.isArray(box.items)) {
+          box.items.forEach((item) => {
+            if (item.cellId) clusterCellIds[bestIdx].add(item.cellId);
+          });
+        }
+      });
+      clusters.forEach((cluster) => {
+        if (cluster.length === 0) return;
+        const clusterZonesForJaccard = new Set();
+        cluster.forEach((b) => b.zones.forEach((z) => clusterZonesForJaccard.add(z)));
+        const task = makeTask(`C-${taskId}`, cluster);
+        const sims = cluster.map((b) => {
+          const z = new Set(b.zones);
+          return jaccard(clusterZonesForJaccard, z);
+        });
+        task.jaccardAvg =
+          sims.reduce((sum, v) => sum + v, 0) / Math.max(1, sims.length);
+        tasks.push(task);
+        taskId += 1;
+      });
+      return;
+    }
+
     const segmentCellIds = new Set();
     segBoxes.forEach((b) => {
       if (Array.isArray(b.items)) {
@@ -418,7 +470,7 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
     let tasksCreatedThisSegment = 0;
     while (unassigned.size > 0) {
       let cluster;
-      if (strictChunkCount && tasksCreatedThisSegment >= effectiveCount - 1) {
+      if (tasksCreatedThisSegment >= effectiveCount - 1) {
         cluster = Array.from(unassigned);
         unassigned.clear();
       } else {
