@@ -1,429 +1,462 @@
-const moneyEl = document.getElementById("money");
-const incomeEl = document.getElementById("income");
-const activeParkName = document.getElementById("activeParkName");
-const activeParkStatus = document.getElementById("activeParkStatus");
-const activeParkSpectators = document.getElementById("activeParkSpectators");
-const activeParkSkaters = document.getElementById("activeParkSkaters");
-const activeParkBeer = document.getElementById("activeParkBeer");
-const activeParkShowIncome = document.getElementById("activeParkShowIncome");
-const activeParkBeerIncome = document.getElementById("activeParkBeerIncome");
-const hireSkaterBtn = document.getElementById("hireSkaterBtn");
-const hireSkaterCost = document.getElementById("hireSkaterCost");
-const openBeerBtn = document.getElementById("openBeerBtn");
-const openBeerCost = document.getElementById("openBeerCost");
-const skaterSelect = document.getElementById("skaterSelect");
-const parksList = document.getElementById("parksList");
+const boxesTableBody = document.getElementById("boxesTableBody");
+const boxesSummary = document.getElementById("boxesSummary");
+const tasksTableBody = document.getElementById("tasksTableBody");
+const btnGenerate = document.getElementById("btnGenerate");
+const btnAssign = document.getElementById("btnAssign");
+const btnRun = document.getElementById("btnRun");
+const pickersInput = document.getElementById("pickers");
+const compareModeInput = document.getElementById("compareMode");
+const tabClustered = document.getElementById("tabClustered");
+const tabBaseline = document.getElementById("tabBaseline");
 const cityMap = document.getElementById("cityMap");
-const parkModal = document.getElementById("parkModal");
-const parkModalClose = document.getElementById("parkModalClose");
-const parkModalTitle = document.getElementById("parkModalTitle");
-const parkSceneSkaters = document.getElementById("parkSceneSkaters");
-const parkSceneCrowd = document.getElementById("parkSceneCrowd");
-const parkSceneBeer = document.getElementById("parkSceneBeer");
 
-const SVG_NS = "http://www.w3.org/2000/svg";
+const kpiTimeClustered = document.getElementById("kpiTimeClustered");
+const kpiTasksClustered = document.getElementById("kpiTasksClustered");
+const kpiTimeBaseline = document.getElementById("kpiTimeBaseline");
+const kpiTasksBaseline = document.getElementById("kpiTasksBaseline");
+const kpiSavings = document.getElementById("kpiSavings");
+const kpiSimilarity = document.getElementById("kpiSimilarity");
+const kpiUtilization = document.getElementById("kpiUtilization");
+const kpiPickers = document.getElementById("kpiPickers");
 
-const PARKS = [
-  { id: 0, name: "Central Plaza", unlockCost: 0, spectators: 35 },
-  { id: 1, name: "Riverside Deck", unlockCost: 800, spectators: 55 },
-  { id: 2, name: "Neon Alley", unlockCost: 1600, spectators: 75 },
-  { id: 3, name: "Skyline Bowl", unlockCost: 2600, spectators: 95 },
-  { id: 4, name: "Harbor Yard", unlockCost: 3800, spectators: 120 },
-];
+const timelineBarsClustered = document.getElementById("timelineBarsClustered");
+const timelineBarsBaseline = document.getElementById("timelineBarsBaseline");
 
-const MAP_LAYOUT = [
-  { id: 0, x: 18, y: 60 },
-  { id: 1, x: 40, y: 30 },
-  { id: 2, x: 62, y: 70 },
-  { id: 3, x: 80, y: 40 },
-  { id: 4, x: 88, y: 75 },
-];
-
-const SKATERS = [
-  { id: "rookie", name: "Rookie", cost: 220, showMult: 0.6 },
-  { id: "pro", name: "Pro", cost: 520, showMult: 1.1 },
-  { id: "star", name: "Star", cost: 950, showMult: 1.8 },
-];
-
-const SHOW_RATE = 0.08;
-const BEER_RATE = 0.06;
-const HIRE_BASE = 300;
-const HIRE_GROWTH = 1.35;
-const BEER_COST = 850;
-
-const state = {
-  money: 250,
-  activeParkId: 0,
-  lastTime: 0,
-  parks: PARKS.map((park, index) => ({
-    ...park,
-    unlocked: index === 0,
-    hired: 0,
-    skaters: [],
-    beer: false,
-  })),
+const SCENARIOS = {
+  clustered: "clustered",
+  baseline: "baseline",
 };
 
-function formatMoney(value) {
-  return `₽${Math.floor(value).toLocaleString("ru-RU")}`;
+const WAREHOUSES = ["MSK-1", "MSK-2"];
+const SESSIONS = ["Утро", "День"];
+const ZONES = ["A", "B", "C", "D", "E"];
+const SKU_GROUPS = ["GROCERY", "TECH", "FASHION", "SPORT", "HOME"];
+
+const MAP_LAYOUT = [
+  { id: 0, x: 20, y: 65 },
+  { id: 1, x: 42, y: 30 },
+  { id: 2, x: 63, y: 70 },
+  { id: 3, x: 80, y: 35 },
+  { id: 4, x: 88, y: 72 },
+];
+
+const state = {
+  boxes: [],
+  tasksClustered: [],
+  tasksBaseline: [],
+  scheduleClustered: [],
+  scheduleBaseline: [],
+  metrics: {
+    clustered: null,
+    baseline: null,
+  },
+  activeScenario: SCENARIOS.clustered,
+};
+
+function randItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-function formatRate(value) {
-  return `₽${value.toFixed(1)}/с`;
+function randInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function getPark(id) {
-  return state.parks.find((park) => park.id === id);
+function generateBoxes() {
+  const count = randInt(40, 70);
+  const boxes = [];
+  for (let i = 0; i < count; i += 1) {
+    const skuGroup = randItem(SKU_GROUPS);
+    const skuId = `${skuGroup}-${randInt(100, 999)}`;
+    const zoneCount = randInt(1, 3);
+    const zones = new Set();
+    while (zones.size < zoneCount) {
+      zones.add(randItem(ZONES));
+    }
+    const warehouse = randItem(WAREHOUSES);
+    const session = randItem(SESSIONS);
+    const volume = randInt(1, 4);
+
+    boxes.push({
+      id: `BOX-${i + 1}`,
+      skuGroup,
+      skuId,
+      zones: Array.from(zones).sort(),
+      warehouse,
+      session,
+      volume,
+    });
+  }
+  state.boxes = boxes;
+  state.tasksClustered = [];
+  state.tasksBaseline = [];
+  state.scheduleClustered = [];
+  state.scheduleBaseline = [];
+  state.metrics.clustered = null;
+  state.metrics.baseline = null;
+  renderBoxes();
+  renderTasks();
+  renderCityMap();
+  renderKpi();
+  renderTimelines();
 }
 
-function getHireCost(park) {
-  const selected = SKATERS.find((skater) => skater.id === skaterSelect.value);
-  const base = selected ? selected.cost : HIRE_BASE;
-  return Math.round(base * Math.pow(HIRE_GROWTH, park.hired));
-}
-
-function getParkIncome(park, isActive) {
-  const hiredPower = park.skaters.reduce(
-    (sum, skater) => sum + skater.showMult,
-    0
-  );
-  const playerPower = isActive ? 1 : 0;
-  const show = park.spectators * SHOW_RATE * (hiredPower + playerPower);
-  const beer = park.beer ? park.spectators * BEER_RATE : 0;
-  return { show, beer, total: show + beer };
-}
-
-function getTotalIncome() {
-  return state.parks.reduce((sum, park) => {
-    if (!park.unlocked) return sum;
-    const income = getParkIncome(park, park.id === state.activeParkId);
-    return sum + income.total;
-  }, 0);
-}
-
-function renderActivePark() {
-  const park = getPark(state.activeParkId);
-  const income = getParkIncome(park, true);
-  const skaters = park.skaters.length + 1;
-
-  activeParkName.textContent = park.name;
-  activeParkStatus.textContent = park.beer
-    ? "Есть пивнуха"
-    : "Пивнуха закрыта";
-  activeParkSpectators.textContent = park.spectators;
-  activeParkSkaters.textContent = skaters;
-  activeParkBeer.textContent = park.beer ? "Открыта" : "Нет";
-  activeParkShowIncome.textContent = formatRate(income.show);
-  activeParkBeerIncome.textContent = formatRate(income.beer);
-
-  const hireCost = getHireCost(park);
-  hireSkaterCost.textContent = `Стоимость: ${formatMoney(hireCost)}`;
-  hireSkaterBtn.disabled = state.money < hireCost;
-
-  openBeerCost.textContent = `Стоимость: ${formatMoney(BEER_COST)}`;
-  openBeerBtn.disabled = park.beer || state.money < BEER_COST;
-}
-
-function renderParks() {
-  parksList.innerHTML = "";
-  state.parks.forEach((park) => {
-    const isActive = park.id === state.activeParkId;
-    const income = getParkIncome(park, isActive);
-    const card = document.createElement("div");
-    card.className = `park-item${park.unlocked ? "" : " locked"}`;
-    card.innerHTML = `
-      <div class="park-row">
-        <div>
-          <div class="park-title">${park.name}</div>
-          <div class="park-meta">
-            Зрители: ${park.spectators} · Скейтеры: ${park.skaters.length}
-            ${isActive ? '<span class="park-badge">Активный</span>' : ""}
-          </div>
-        </div>
-        <div>${park.unlocked ? "Открыт" : "Закрыт"}</div>
-      </div>
-      <div class="park-row">
-        <div>Доход: ${formatRate(income.total)}</div>
-        <div class="park-actions">
-          ${
-            park.unlocked
-              ? `<button class="primary" data-action="enter" data-id="${park.id}">
-                  Войти в парк
-                </button>`
-              : `<button data-action="unlock" data-id="${park.id}">
-                  Открыть за ${formatMoney(park.unlockCost)}
-                </button>`
-          }
-        </div>
-      </div>
+function renderBoxes() {
+  boxesTableBody.innerHTML = "";
+  boxesSummary.textContent = `${state.boxes.length} коробок`;
+  state.boxes.forEach((box) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${box.id}</td>
+      <td><span class="badge sku">${box.skuId}</span></td>
+      <td>${box.zones.map((z) => `<span class="badge zone">${z}</span>`).join(" ")}</td>
+      <td>${box.warehouse}</td>
+      <td>${box.session}</td>
+      <td>${box.volume}</td>
     `;
-    parksList.appendChild(card);
+    boxesTableBody.appendChild(tr);
+  });
+}
+
+function jaccard(aSet, bSet) {
+  let inter = 0;
+  aSet.forEach((v) => {
+    if (bSet.has(v)) inter += 1;
+  });
+  const union = aSet.size + bSet.size - inter;
+  return union === 0 ? 1 : inter / union;
+}
+
+function groupByKey(items, keyFn) {
+  const map = new Map();
+  items.forEach((item) => {
+    const key = keyFn(item);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(item);
+  });
+  return map;
+}
+
+function makeTask(id, boxes) {
+  const skuSet = new Set();
+  const zoneSet = new Set();
+  let volume = 0;
+  boxes.forEach((b) => {
+    skuSet.add(b.skuId);
+    b.zones.forEach((z) => zoneSet.add(z));
+    volume += b.volume;
+  });
+  const zonesArray = Array.from(zoneSet).sort();
+  const complexity =
+    zonesArray.length * Math.sqrt(boxes.length) + volume * 0.4;
+  const eta = 1 + complexity * 0.9;
+  return {
+    id,
+    boxIds: boxes.map((b) => b.id),
+    skuCount: skuSet.size,
+    zones: zonesArray,
+    warehouse: boxes[0].warehouse,
+    session: boxes[0].session,
+    complexity,
+    eta,
+    jaccardAvg: 0,
+  };
+}
+
+function assignBaseline() {
+  const tasks = [];
+  const bySeg = groupByKey(
+    state.boxes,
+    (b) => `${b.warehouse}::${b.session}`
+  );
+  let taskId = 1;
+  bySeg.forEach((boxes, seg) => {
+    const sorted = [...boxes].sort((a, b) =>
+      a.zones.join("").localeCompare(b.zones.join(""))
+    );
+    for (let i = 0; i < sorted.length; i += 5) {
+      const slice = sorted.slice(i, i + 5);
+      const task = makeTask(`B-${taskId}`, slice);
+      task.jaccardAvg = 0;
+      tasks.push(task);
+      taskId += 1;
+    }
+  });
+  state.tasksBaseline = tasks;
+}
+
+function assignClustered() {
+  const tasks = [];
+  const bySeg = groupByKey(
+    state.boxes,
+    (b) => `${b.warehouse}::${b.session}`
+  );
+  let taskId = 1;
+  bySeg.forEach((boxes) => {
+    const unassigned = new Set(boxes);
+    while (unassigned.size > 0) {
+      const seed = unassigned.values().next().value;
+      unassigned.delete(seed);
+      const cluster = [seed];
+      const clusterZones = new Set(seed.zones);
+      const clusterSkus = new Set([seed.skuId]);
+      const cand = Array.from(unassigned);
+      cand.sort((a, b) => b.zones.length - a.zones.length);
+      for (const box of cand) {
+        if (cluster.length >= 10) break;
+        const boxZones = new Set(box.zones);
+        const simZones = jaccard(clusterZones, boxZones);
+        if (simZones < 0.4) continue;
+        cluster.push(box);
+        box.zones.forEach((z) => clusterZones.add(z));
+        clusterSkus.add(box.skuId);
+        unassigned.delete(box);
+      }
+      const task = makeTask(`C-${taskId}`, cluster);
+      const sims = cluster.map((b) => {
+        const z = new Set(b.zones);
+        return jaccard(clusterZones, z);
+      });
+      task.jaccardAvg =
+        sims.reduce((sum, v) => sum + v, 0) / Math.max(1, sims.length);
+      tasks.push(task);
+      taskId += 1;
+    }
+  });
+  state.tasksClustered = tasks;
+}
+
+function renderTasks() {
+  const scenario = state.activeScenario;
+  const tasks =
+    scenario === SCENARIOS.clustered
+      ? state.tasksClustered
+      : state.tasksBaseline;
+  tasksTableBody.innerHTML = "";
+  tasks.forEach((task) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${task.id}</td>
+      <td>${task.boxIds.length}</td>
+      <td>${task.skuCount}</td>
+      <td>${task.zones
+        .map((z) => `<span class="badge zone">${z}</span>`)
+        .join(" ")}</td>
+      <td>${task.jaccardAvg ? task.jaccardAvg.toFixed(2) : "–"}</td>
+      <td>${task.warehouse} / ${task.session}</td>
+      <td>${task.complexity.toFixed(1)}</td>
+      <td>${task.eta.toFixed(1)}</td>
+    `;
+    tasksTableBody.appendChild(tr);
   });
 }
 
 function renderCityMap() {
-  if (!cityMap) return;
   cityMap.innerHTML = "";
   for (let i = 0; i < MAP_LAYOUT.length - 1; i += 1) {
-    const current = MAP_LAYOUT[i];
-    const next = MAP_LAYOUT[i + 1];
+    const a = MAP_LAYOUT[i];
+    const b = MAP_LAYOUT[i + 1];
     const line = document.createElement("div");
     line.className = "map-connector";
-    const dx = next.x - current.x;
-    const dy = next.y - current.y;
-    const length = Math.hypot(dx, dy);
-    const angle = Math.atan2(dy, dx);
-    line.style.left = `${current.x}%`;
-    line.style.top = `${current.y}%`;
-    line.style.width = `${length}%`;
-    line.style.transform = `rotate(${angle}rad)`;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    const ang = Math.atan2(dy, dx);
+    line.style.left = `${a.x}%`;
+    line.style.top = `${a.y}%`;
+    line.style.width = `${len}%`;
+    line.style.transform = `rotate(${ang}rad)`;
     cityMap.appendChild(line);
   }
-
   MAP_LAYOUT.forEach((node) => {
-    const park = getPark(node.id);
+    const park = { id: node.id, unlocked: true }; // all active in this model
     const card = document.createElement("div");
-    card.className = `map-node${park.unlocked ? " unlocked" : " locked"}${
-      park.id === state.activeParkId ? " active" : ""
+    card.className = `map-node unlocked${
+      node.id === 0 ? " active" : ""
     }`;
     card.style.left = `${node.x}%`;
     card.style.top = `${node.y}%`;
-    card.innerHTML = `<div class="dot"></div>${park.name}`;
-    card.addEventListener("click", () => {
-      if (park.unlocked) {
-        enterPark(park.id);
-      }
-    });
+    card.innerHTML = `<div class="dot"></div>Парк ${node.id + 1}`;
     cityMap.appendChild(card);
   });
 }
 
-function renderSkaterSelect() {
-  skaterSelect.innerHTML = "";
-  SKATERS.forEach((skater) => {
-    const option = document.createElement("option");
-    option.value = skater.id;
-    option.textContent = `${skater.name} (${formatMoney(skater.cost)})`;
-    skaterSelect.appendChild(option);
+function simulateShift(tasks, pickers) {
+  const pickerStates = [];
+  for (let i = 0; i < pickers; i += 1) {
+    pickerStates.push({ id: i + 1, availableAt: 0, busy: 0 });
+  }
+  const schedule = [];
+  const sorted = [...tasks].sort((a, b) => b.complexity - a.complexity);
+  sorted.forEach((task) => {
+    pickerStates.sort((a, b) => a.availableAt - b.availableAt);
+    const picker = pickerStates[0];
+    const start = picker.availableAt;
+    const end = start + task.eta;
+    picker.availableAt = end;
+    picker.busy += task.eta;
+    schedule.push({
+      pickerId: picker.id,
+      taskId: task.id,
+      start,
+      end,
+    });
+  });
+  const makespan = schedule.reduce(
+    (max, s) => Math.max(max, s.end),
+    0
+  );
+  const totalBusy = pickerStates.reduce((sum, p) => sum + p.busy, 0);
+  const utilization =
+    makespan === 0 ? 0 : (totalBusy / (makespan * pickers)) * 100;
+  return { schedule, makespan, utilization };
+}
+
+function renderTimelineForScenario(
+  scenario,
+  schedule,
+  makespan,
+  container
+) {
+  container.innerHTML = "";
+  if (!schedule.length || makespan === 0) return;
+  const pickers = new Set(schedule.map((s) => s.pickerId));
+  pickers.forEach((id) => {
+    const row = document.createElement("div");
+    row.className = "timeline-row";
+    const label = document.createElement("div");
+    label.className = "timeline-row-label";
+    label.textContent = `#${id}`;
+    row.appendChild(label);
+    const tasks = schedule.filter((s) => s.pickerId === id);
+    tasks.forEach((t) => {
+      const div = document.createElement("div");
+      div.className = `timeline-task ${scenario}`;
+      const left = (t.start / makespan) * 100;
+      const width = ((t.end - t.start) / makespan) * 100;
+      div.style.left = `${left}%`;
+      div.style.width = `${width}%`;
+      div.innerHTML = `<span>${t.taskId}</span>`;
+      row.appendChild(div);
+    });
+    container.appendChild(row);
   });
 }
 
-function clearGroup(group) {
-  while (group.firstChild) {
-    group.removeChild(group.firstChild);
+function renderTimelines() {
+  const compare = compareModeInput.checked;
+  const mClustered = state.metrics.clustered;
+  const mBaseline = state.metrics.baseline;
+  timelineBarsClustered.innerHTML = "";
+  timelineBarsBaseline.innerHTML = "";
+  if (mClustered) {
+    renderTimelineForScenario(
+      "clustered",
+      mClustered.schedule,
+      mClustered.makespan,
+      timelineBarsClustered
+    );
+  }
+  if (compare && mBaseline) {
+    renderTimelineForScenario(
+      "baseline",
+      mBaseline.schedule,
+      mBaseline.makespan,
+      timelineBarsBaseline
+    );
   }
 }
 
-function createSvgEl(tag, attrs = {}) {
-  const el = document.createElementNS(SVG_NS, tag);
-  Object.entries(attrs).forEach(([key, value]) => {
-    el.setAttribute(key, value);
-  });
-  return el;
+function renderKpi() {
+  const mC = state.metrics.clustered;
+  const mB = state.metrics.baseline;
+  if (mC) {
+    kpiTimeClustered.textContent = `${mC.makespan.toFixed(1)} мин`;
+    kpiTasksClustered.textContent = `${state.tasksClustered.length} заданий`;
+    kpiUtilization.textContent = `${mC.utilization.toFixed(0)} %`;
+  } else {
+    kpiTimeClustered.textContent = "–";
+    kpiTasksClustered.textContent = "–";
+    kpiUtilization.textContent = "–";
+  }
+  if (mB) {
+    kpiTimeBaseline.textContent = `${mB.makespan.toFixed(1)} мин`;
+    kpiTasksBaseline.textContent = `${state.tasksBaseline.length} заданий`;
+  } else {
+    kpiTimeBaseline.textContent = "–";
+    kpiTasksBaseline.textContent = "–";
+  }
+  if (mC && mB) {
+    const diff = ((mB.makespan - mC.makespan) / mB.makespan) * 100;
+    kpiSavings.textContent = `${diff.toFixed(1)} %`;
+  } else {
+    kpiSavings.textContent = "–";
+  }
+  if (state.tasksClustered.length) {
+    const avgJ =
+      state.tasksClustered.reduce(
+        (sum, t) => sum + (t.jaccardAvg || 0),
+        0
+      ) / state.tasksClustered.length;
+    kpiSimilarity.textContent = `Средний Jaccard: ${avgJ.toFixed(2)}`;
+  } else {
+    kpiSimilarity.textContent = "Средний Jaccard: –";
+  }
+  kpiPickers.textContent = `${Number(
+    pickersInput.value || 0
+  )} сборщиков`;
 }
 
-function renderParkScene(park) {
-  clearGroup(parkSceneSkaters);
-  clearGroup(parkSceneCrowd);
-  clearGroup(parkSceneBeer);
-
-  const showSkaters = park.skaters.length + 1;
-  const skaterPalette = ["#1f2937", "#ef4444", "#0ea5e9", "#10b981"];
-  const skaterPositions = [
-    { x: 210, y: 210, scale: 1.1 },
-    { x: 430, y: 190, scale: 1.0 },
-    { x: 610, y: 220, scale: 0.95 },
-    { x: 120, y: 260, scale: 0.9 },
-  ];
-
-  for (let i = 0; i < showSkaters; i += 1) {
-    const pos = skaterPositions[i % skaterPositions.length];
-    const outer = createSvgEl("g", {
-      transform: `translate(${pos.x}, ${pos.y}) scale(${pos.scale})`,
-    });
-    const skater = createSvgEl("g", {
-      class: `scene-skater${i % 2 === 0 ? " fast" : ""}`,
-    });
-    const head = createSvgEl("circle", {
-      cx: 16,
-      cy: -30,
-      r: 8,
-      fill: "#fcd34d",
-      stroke: "#0f172a",
-      "stroke-width": 2,
-    });
-    const torso = createSvgEl("rect", {
-      x: 6,
-      y: -20,
-      width: 20,
-      height: 26,
-      rx: 8,
-      fill: skaterPalette[i % skaterPalette.length],
-      stroke: "#0f172a",
-      "stroke-width": 2,
-    });
-    const legLeft = createSvgEl("rect", {
-      x: 4,
-      y: 6,
-      width: 8,
-      height: 20,
-      rx: 4,
-      fill: "#0f172a",
-    });
-    const legRight = createSvgEl("rect", {
-      x: 20,
-      y: 6,
-      width: 8,
-      height: 20,
-      rx: 4,
-      fill: "#0f172a",
-    });
-    const board = createSvgEl("rect", {
-      x: -4,
-      y: 24,
-      width: 44,
-      height: 8,
-      rx: 6,
-      fill: "#f59e0b",
-      stroke: "#0f172a",
-      "stroke-width": 2,
-    });
-    skater.append(head, torso, legLeft, legRight, board);
-    outer.appendChild(skater);
-    parkSceneSkaters.appendChild(outer);
-  }
-
-  const crowdCount = Math.min(park.spectators, 10);
-  for (let i = 0; i < crowdCount; i += 1) {
-    const x = 520 + i * 28;
-    const y = 250 + (i % 2) * 6;
-    const group = createSvgEl("g", { class: "scene-crowd" });
-    const body = createSvgEl("rect", {
-      x,
-      y,
-      width: 18,
-      height: 28,
-      rx: 8,
-      fill: "#1f2937",
-      stroke: "#0f172a",
-      "stroke-width": 2,
-    });
-    const head = createSvgEl("circle", {
-      cx: x + 9,
-      cy: y - 6,
-      r: 7,
-      fill: "#fde68a",
-      stroke: "#0f172a",
-      "stroke-width": 2,
-    });
-    group.append(body, head);
-    parkSceneCrowd.appendChild(group);
-  }
-
-  if (park.beer) {
-    const cupsCount = Math.min(park.spectators, 6);
-    for (let i = 0; i < cupsCount; i += 1) {
-      const x = 540 + i * 30;
-      const y = 300 + (i % 2) * 6;
-      const cup = createSvgEl("rect", {
-        x,
-        y,
-        width: 14,
-        height: 20,
-        rx: 4,
-        fill: "#f59e0b",
-        stroke: "#0f172a",
-        "stroke-width": 2,
-        class: "scene-cup",
-      });
-      parkSceneBeer.appendChild(cup);
-    }
-  }
+function assignTasks() {
+  if (!state.boxes.length) return;
+  assignBaseline();
+  assignClustered();
+  renderTasks();
 }
 
-function updateMoneyOnly() {
-  moneyEl.textContent = formatMoney(state.money);
-  incomeEl.textContent = formatRate(getTotalIncome());
+function runShift() {
+  if (!state.tasksClustered.length) return;
+  const pickers = Math.max(1, Number(pickersInput.value) || 1);
+  const clustered = simulateShift(state.tasksClustered, pickers);
+  state.metrics.clustered = clustered;
+  if (compareModeInput.checked && state.tasksBaseline.length) {
+    const baseline = simulateShift(state.tasksBaseline, pickers);
+    state.metrics.baseline = baseline;
+  }
+  renderKpi();
+  renderTimelines();
 }
 
-function renderAll() {
-  updateMoneyOnly();
-  renderActivePark();
+btnGenerate.addEventListener("click", generateBoxes);
+btnAssign.addEventListener("click", () => {
+  assignTasks();
   renderCityMap();
-  renderParks();
-}
+  renderKpi();
+});
+btnRun.addEventListener("click", runShift);
 
-function unlockPark(parkId) {
-  const park = getPark(parkId);
-  if (!park || park.unlocked) return;
-  if (state.money < park.unlockCost) return;
-  state.money -= park.unlockCost;
-  park.unlocked = true;
-  state.activeParkId = park.id;
-  renderAll();
-}
-
-function enterPark(parkId) {
-  const park = getPark(parkId);
-  if (!park || !park.unlocked) return;
-  state.activeParkId = park.id;
-  parkModalTitle.textContent = park.name;
-  renderParkScene(park);
-  parkModal.classList.remove("hidden");
-  renderAll();
-}
-
-function hireSkater() {
-  const park = getPark(state.activeParkId);
-  const cost = getHireCost(park);
-  if (state.money < cost) return;
-  const skater = SKATERS.find((item) => item.id === skaterSelect.value);
-  if (!skater) return;
-  state.money -= cost;
-  park.skaters.push(skater);
-  renderAll();
-}
-
-function openBeer() {
-  const park = getPark(state.activeParkId);
-  if (park.beer || state.money < BEER_COST) return;
-  state.money -= BEER_COST;
-  park.beer = true;
-  renderAll();
-}
-
-function loop(timestamp) {
-  if (!state.lastTime) state.lastTime = timestamp;
-  const delta = Math.min(0.05, (timestamp - state.lastTime) / 1000);
-  state.lastTime = timestamp;
-  const income = getTotalIncome();
-  state.money += income * delta;
-  updateMoneyOnly();
-  requestAnimationFrame(loop);
-}
-
-hireSkaterBtn.addEventListener("click", hireSkater);
-openBeerBtn.addEventListener("click", openBeer);
-skaterSelect.addEventListener("change", renderAll);
-
-parksList.addEventListener("click", (event) => {
-  const target = event.target.closest("button");
-  if (!target) return;
-  const parkId = Number(target.dataset.id);
-  if (target.dataset.action === "unlock") unlockPark(parkId);
-  if (target.dataset.action === "enter") enterPark(parkId);
+pickersInput.addEventListener("change", () => {
+  renderKpi();
+  renderTimelines();
 });
 
-parkModalClose.addEventListener("click", () => {
-  parkModal.classList.add("hidden");
+compareModeInput.addEventListener("change", () => {
+  renderKpi();
+  renderTimelines();
 });
 
-parkModal.addEventListener("click", (event) => {
-  if (event.target === parkModal) {
-    parkModal.classList.add("hidden");
-  }
+tabClustered.addEventListener("click", () => {
+  state.activeScenario = SCENARIOS.clustered;
+  tabClustered.classList.add("active");
+  tabBaseline.classList.remove("active");
+  renderTasks();
 });
 
-renderSkaterSelect();
-renderAll();
-requestAnimationFrame(loop);
+tabBaseline.addEventListener("click", () => {
+  state.activeScenario = SCENARIOS.baseline;
+  tabBaseline.classList.add("active");
+  tabClustered.classList.remove("active");
+  renderTasks();
+});
+
+renderCityMap();
+

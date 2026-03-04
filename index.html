@@ -2,111 +2,151 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Skate Park Tycoon</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>WMS Pick Simulator</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <div class="app">
       <header class="topbar">
         <div class="brand">
-          <span class="brand-mark">SP</span>
+          <span class="brand-mark">WMS</span>
           <div>
-            <div class="brand-title">Skate Park Tycoon</div>
-            <div class="brand-sub">Городская сеть скейтпарков</div>
+            <div class="brand-title">WMS Pick Simulator</div>
+            <div class="brand-sub">
+              Эмулятор комплектовки кастомных коробок с кластеризацией
+            </div>
           </div>
         </div>
-        <div class="money-card">
-          <div class="money-label">Баланс</div>
-          <div id="money" class="money-value">₽0</div>
-          <div class="money-sub">
-            Доход: <span id="income">₽0/с</span>
+        <div class="controls">
+          <button id="btnGenerate" class="btn primary">
+            Сгенерировать входящий поток
+          </button>
+          <button id="btnAssign" class="btn">
+            Назначить задания (кластеризация)
+          </button>
+          <div class="inline">
+            <label for="pickers">Сборщиков</label>
+            <input id="pickers" type="number" min="1" max="12" value="4" />
           </div>
+          <button id="btnRun" class="btn success">Запустить смену</button>
+          <label class="inline toggle">
+            <input id="compareMode" type="checkbox" checked />
+            <span>Режим сравнения без кластеризации</span>
+          </label>
         </div>
       </header>
 
       <main class="layout">
-        <section class="panel left">
-          <div class="panel-title">Активный парк</div>
-          <div id="activeParkCard" class="park-card active">
-            <div class="park-title" id="activeParkName">-</div>
-            <div class="park-meta" id="activeParkStatus">-</div>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Коробки (входящий поток)</h2>
+            <div class="panel-sub" id="boxesSummary">0 коробок</div>
           </div>
-          <div class="stats">
-            <div class="stat">
-              <span class="label">Зрители</span>
-              <span id="activeParkSpectators">0</span>
-            </div>
-            <div class="stat">
-              <span class="label">Скейтера(ов)</span>
-              <span id="activeParkSkaters">0</span>
-            </div>
-            <div class="stat">
-              <span class="label">Пивнуха</span>
-              <span id="activeParkBeer">Нет</span>
-            </div>
-            <div class="stat">
-              <span class="label">Шоу доход</span>
-              <span id="activeParkShowIncome">₽0/с</span>
-            </div>
-            <div class="stat">
-              <span class="label">Пиво доход</span>
-              <span id="activeParkBeerIncome">₽0/с</span>
-            </div>
-          </div>
-          <div class="actions">
-            <label class="select-label" for="skaterSelect">Выбери скейтера</label>
-            <select id="skaterSelect" class="select"></select>
-            <button id="hireSkaterBtn" class="action-btn">Нанять скейтера</button>
-            <div class="action-sub" id="hireSkaterCost">Стоимость: -</div>
-            <button id="openBeerBtn" class="action-btn ghost">
-              Открыть пивнуху
-            </button>
-            <div class="action-sub" id="openBeerCost">Стоимость: -</div>
-          </div>
-          <div class="tips">
-            Каждый парк приносит доход от шоу и продажи пива. Игрок катается
-            в активном парке, остальные работают автономно.
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Коробка</th>
+                  <th>SKU</th>
+                  <th>Зоны</th>
+                  <th>Склад</th>
+                  <th>Сессия</th>
+                  <th>Объём</th>
+                </tr>
+              </thead>
+              <tbody id="boxesTableBody"></tbody>
+            </table>
           </div>
         </section>
 
-        <section class="panel right">
-          <div class="panel-title">Карта города</div>
-          <div id="cityMap" class="city-map"></div>
-          <div id="parksList" class="parks-list"></div>
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Задания</h2>
+            <div class="tabs">
+              <button
+                class="tab active"
+                data-scenario="clustered"
+                id="tabClustered"
+              >
+                С кластеризацией
+              </button>
+              <button class="tab" data-scenario="baseline" id="tabBaseline">
+                Без кластеризации
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Задание</th>
+                  <th>Коробок</th>
+                  <th>SKU</th>
+                  <th>Зоны</th>
+                  <th>Jaccard</th>
+                  <th>Склад / Сессия</th>
+                  <th>Сложность</th>
+                  <th>ETA (мин)</th>
+                </tr>
+              </thead>
+              <tbody id="tasksTableBody"></tbody>
+            </table>
+          </div>
         </section>
       </main>
-    </div>
 
-    <div id="parkModal" class="park-modal hidden">
-      <div class="park-modal-content">
-        <div class="park-modal-header">
-          <div id="parkModalTitle" class="park-modal-title">Park</div>
-          <button id="parkModalClose" class="icon-btn">Закрыть</button>
+      <section class="bottom">
+        <div class="panel kpi">
+          <div class="panel-header">
+            <h2>KPI смены</h2>
+          </div>
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-label">Время (кластеризация)</div>
+              <div id="kpiTimeClustered" class="kpi-value">–</div>
+              <div class="kpi-sub" id="kpiTasksClustered">– заданий</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Время (без кластеризации)</div>
+              <div id="kpiTimeBaseline" class="kpi-value">–</div>
+              <div class="kpi-sub" id="kpiTasksBaseline">– заданий</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Экономия времени</div>
+              <div id="kpiSavings" class="kpi-value accent">–</div>
+              <div class="kpi-sub" id="kpiSimilarity">
+                Средний Jaccard: –
+              </div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Средняя загрузка сборщиков</div>
+              <div id="kpiUtilization" class="kpi-value">–</div>
+              <div class="kpi-sub" id="kpiPickers">– сборщиков</div>
+            </div>
+          </div>
         </div>
-        <div class="park-scene">
-          <svg
-            id="parkSceneSvg"
-            viewBox="0 0 900 420"
-            role="img"
-            aria-label="Сцена скейтпарка"
-          >
-            <image
-              href="./reference.png"
-              x="0"
-              y="0"
-              width="900"
-              height="420"
-              preserveAspectRatio="xMidYMid slice"
-            />
-            <g id="parkSceneSkaters"></g>
-            <g id="parkSceneCrowd"></g>
-            <g id="parkSceneBeer"></g>
-          </svg>
+
+        <div class="panel timeline-panel">
+          <div class="panel-header">
+            <h2>Таймлайн смены</h2>
+          </div>
+          <div id="timelineClustered" class="timeline">
+            <div class="timeline-label">С кластеризацией</div>
+            <div class="timeline-bars" id="timelineBarsClustered"></div>
+          </div>
+          <div id="timelineBaseline" class="timeline">
+            <div class="timeline-label">Без кластеризации</div>
+            <div class="timeline-bars" id="timelineBarsBaseline"></div>
+          </div>
         </div>
-      </div>
+      </section>
     </div>
 
     <script src="./game.js"></script>
   </body>
 </html>
+
