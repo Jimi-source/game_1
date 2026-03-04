@@ -2,6 +2,8 @@ const boxesTableBody = document.getElementById("boxesTableBody");
 const boxesSummary = document.getElementById("boxesSummary");
 const tasksTableBody = document.getElementById("tasksTableBody");
 const btnGenerate = document.getElementById("btnGenerate");
+const btnAcceptTrays = document.getElementById("btnAcceptTrays");
+const btnShowZones = document.getElementById("btnShowZones");
 const btnAssign = document.getElementById("btnAssign");
 const btnRun = document.getElementById("btnRun");
 const pickersInput = document.getElementById("pickers");
@@ -14,6 +16,9 @@ const chunkBoxesInput = document.getElementById("chunkBoxes");
 const chunkVolumeInput = document.getElementById("chunkVolume");
 const chunkCountInput = document.getElementById("chunkCount");
 const btnPlan = document.getElementById("btnPlan");
+const zonesModal = document.getElementById("zonesModal");
+const zonesModalClose = document.getElementById("zonesModalClose");
+const zonesModalBody = document.getElementById("zonesModalBody");
 const assignModal = document.getElementById("assignModal");
 const assignModalClose = document.getElementById("assignModalClose");
 const assignTasksBody = document.getElementById("assignTasksBody");
@@ -44,6 +49,8 @@ const state = {
   boxes: [],
   trays: [],
   boxCells: [],
+  traysAccepted: false,
+  zoneDistribution: null,
   tasksClustered: [],
   metrics: { clustered: null },
   actualTimes: { clustered: new Map() },
@@ -186,16 +193,65 @@ function generateBoxes() {
   state.boxes = boxes;
   state.trays = trays;
   state.boxCells = boxCells;
+  state.traysAccepted = false;
+  state.zoneDistribution = null;
   state.tasksClustered = [];
   state.metrics.clustered = null;
   state.actualTimes.clustered = new Map();
   state.assigned = new Set();
   renderBoxes();
+  updateAssignButtonState();
   renderTasks();
   renderCityMap();
   renderSegmentBars();
   renderKpi();
   renderTimelines();
+}
+
+function getZoneDistribution() {
+  const byZone = new Map();
+  ZONES.forEach((z) => byZone.set(z, { cells: 0, trays: 0 }));
+  state.boxCells.forEach((cell) => {
+    const cur = byZone.get(cell.zone);
+    if (cur) {
+      cur.cells += 1;
+      cur.trays += cell.trayIds.length;
+    }
+  });
+  return byZone;
+}
+
+function acceptTrays() {
+  if (!state.boxes.length) return;
+  const dist = getZoneDistribution();
+  state.zoneDistribution = dist;
+  state.traysAccepted = true;
+  updateAssignButtonState();
+}
+
+function openZonesModal() {
+  const dist = state.zoneDistribution || getZoneDistribution();
+  zonesModalBody.innerHTML = "";
+  ZONES.forEach((zone) => {
+    const data = dist.get(zone) || { cells: 0, trays: 0 };
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${zone}</td>
+      <td>${data.cells}</td>
+      <td>${data.trays}</td>
+    `;
+    zonesModalBody.appendChild(tr);
+  });
+  zonesModal.classList.remove("hidden");
+}
+
+function updateAssignButtonState() {
+  if (btnAssign) {
+    btnAssign.disabled = !state.traysAccepted;
+    btnAssign.title = state.traysAccepted
+      ? "Сгенерировать задания с учётом распределения по зонам"
+      : "Сначала нажмите «Принять лотки»";
+  }
 }
 
 function renderBoxes() {
@@ -653,7 +709,10 @@ function runShift() {
 }
 
 btnGenerate.addEventListener("click", generateBoxes);
+btnAcceptTrays.addEventListener("click", acceptTrays);
+btnShowZones.addEventListener("click", openZonesModal);
 btnAssign.addEventListener("click", () => {
+  if (!state.traysAccepted) return;
   assignTasks();
   renderCityMap();
   renderSegmentBars();
@@ -663,6 +722,13 @@ btnRun.addEventListener("click", runShift);
 
 btnPlan.addEventListener("click", () => {
   openAssignModal();
+});
+
+zonesModalClose.addEventListener("click", () => {
+  zonesModal.classList.add("hidden");
+});
+zonesModal.addEventListener("click", (event) => {
+  if (event.target === zonesModal) zonesModal.classList.add("hidden");
 });
 
 assignModalClose.addEventListener("click", () => {
@@ -699,4 +765,5 @@ pickersInput.addEventListener("change", () => {
 
 renderCityMap();
 renderSegmentBars();
+updateAssignButtonState();
 

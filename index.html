@@ -81,7 +81,13 @@
             <button id="btnGenerate" class="btn primary">
               Получить задание на комплектовку
             </button>
-            <button id="btnAssign" class="btn outlined">
+            <button id="btnAcceptTrays" class="btn outlined" title="Распределить лотки по зонам BOX">
+              Принять лотки
+            </button>
+            <button id="btnShowZones" class="btn outlined">
+              Посмотреть зоны BOX
+            </button>
+            <button id="btnAssign" class="btn outlined" title="Доступно после «Принять лотки»">
               Сгенерировать задания на комплектовку
             </button>
             <button id="btnPlan" class="btn">
@@ -189,6 +195,27 @@
           </div>
         </div>
       </section>
+
+      <div id="zonesModal" class="modal hidden">
+        <div class="modal-content modal-content--narrow">
+          <div class="modal-header">
+            <h2>Распределение лотков по зонам BOX</h2>
+            <button id="zonesModalClose" class="btn outlined">Закрыть</button>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Зона</th>
+                  <th>Ячеек</th>
+                  <th>Лотков</th>
+                </tr>
+              </thead>
+              <tbody id="zonesModalBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       <div id="assignModal" class="modal hidden">
         <div class="modal-content">

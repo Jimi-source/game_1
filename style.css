@@ -400,6 +400,10 @@ body {
   gap: 8px;
 }
 
+.modal-content--narrow {
+  width: min(420px, 100%);
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
