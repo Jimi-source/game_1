@@ -490,6 +490,15 @@ function openAssignModal() {
       const box = state.boxes.find((b) => b.id === id);
       return sum + (box ? box.volume : 0);
     }, 0);
+    const cellIds = new Set();
+    task.boxIds.forEach((id) => {
+      const box = state.boxes.find((b) => b.id === id);
+      if (box && Array.isArray(box.items)) {
+        box.items.forEach((item) => {
+          if (item.cellId) cellIds.add(item.cellId);
+        });
+      }
+    });
     const isAssigned = assignedSet.has(task.id);
     row.innerHTML = `
       <td>
@@ -503,7 +512,7 @@ function openAssignModal() {
       <td>${task.warehouse}</td>
       <td>${task.boxIds.length}</td>
       <td>${totalVolume}</td>
-      <td>${task.zones.length}</td>
+      <td>${cellIds.size}</td>
       <td>${task.jaccardAvg ? task.jaccardAvg.toFixed(2) : "–"}</td>
       <td>${task.eta.toFixed(1)}</td>
       <td>
