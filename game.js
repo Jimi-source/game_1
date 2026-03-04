@@ -340,15 +340,16 @@ function getChunkSettings() {
   };
 }
 
-function assignClustered() {
+function assignClustered(boxesToCluster, startTaskId = 1) {
+  const boxes = boxesToCluster ?? state.boxes;
   const tasks = [];
   const bySeg = groupByKey(
-    state.boxes,
+    boxes,
     (b) => `${b.warehouse}::${b.session}`
   );
   const segments = Array.from(bySeg.entries());
-  const totalBoxes = state.boxes.length;
-  let taskId = 1;
+  const totalBoxes = boxes.length;
+  let taskId = startTaskId;
   const { boxesTarget, volumeTarget, countTarget } = getChunkSettings();
   const MAX_TRAYS_PER_TASK = 6 * 40;
 
@@ -356,8 +357,8 @@ function assignClustered() {
   if (countTarget && countTarget > 0) {
     segments.forEach(() => chunksPerSegment.push(countTarget));
   } else {
-    segments.forEach(([, boxes]) => {
-      const segmentVolume = boxes.reduce((sum, b) => sum + b.volume, 0);
+    segments.forEach(([, segBoxes]) => {
+      const segmentVolume = segBoxes.reduce((sum, b) => sum + b.volume, 0);
       const optimal = Math.max(
         1,
         Math.ceil(segmentVolume / MAX_TRAYS_PER_TASK)
@@ -366,12 +367,12 @@ function assignClustered() {
     });
   }
 
-  segments.forEach(([, boxes], segIndex) => {
-    const totalBoxesSeg = boxes.length;
-    const totalVolumeSeg = boxes.reduce((sum, b) => sum + b.volume, 0);
+  segments.forEach(([, segBoxes], segIndex) => {
+    const totalBoxesSeg = segBoxes.length;
+    const totalVolumeSeg = segBoxes.reduce((sum, b) => sum + b.volume, 0);
     const effectiveCount = chunksPerSegment[segIndex] ?? 1;
     if (effectiveCount <= 0) return;
-    const unassigned = new Set(boxes);
+    const unassigned = new Set(segBoxes);
     let maxBoxes = 40;
     if (effectiveCount && effectiveCount > 0) {
       maxBoxes = Math.max(
@@ -452,7 +453,7 @@ function assignClustered() {
       taskId += 1;
     }
   });
-  state.tasksClustered = tasks;
+  return tasks;
 }
 
 function renderTasks() {
@@ -722,9 +723,36 @@ function renderKpi() {
 
 function assignTasks() {
   if (!state.boxes.length) return;
-  assignClustered();
+
+  const assignedSet = state.assigned;
+  const hasAssigned = assignedSet.size > 0 && state.tasksClustered.length > 0;
+
+  if (hasAssigned) {
+    const coveredBoxIds = new Set();
+    state.tasksClustered.forEach((t) => {
+      if (assignedSet.has(t.id)) t.boxIds.forEach((id) => coveredBoxIds.add(id));
+    });
+    const remainingBoxes = state.boxes.filter((b) => !coveredBoxIds.has(b.id));
+    if (remainingBoxes.length === 0) {
+      renderTasks();
+      renderSegmentBars();
+      renderKpi();
+      return;
+    }
+    const assignedTasks = state.tasksClustered.filter((t) => assignedSet.has(t.id));
+    const maxId = assignedTasks.reduce((m, t) => {
+      const n = parseInt(t.id.replace(/\D/g, ""), 10);
+      return Number.isNaN(n) ? m : Math.max(m, n);
+    }, 0);
+    const newTasks = assignClustered(remainingBoxes, maxId + 1);
+    state.tasksClustered = assignedTasks.concat(newTasks);
+  } else {
+    state.tasksClustered = assignClustered(state.boxes, 1);
+  }
+
   renderTasks();
   renderSegmentBars();
+  renderKpi();
 }
 
 function runShift() {
