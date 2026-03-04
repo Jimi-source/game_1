@@ -80,47 +80,72 @@ function randInt(min, max) {
 function generateBoxes() {
   const orderSize = randInt(2000, 3000);
   const boxes = [];
-  const uniqueSkuCount = randInt(4, Math.min(6, ZONES.length));
+  const uniqueSkuCount = randInt(25, 40);
   const skuDefs = [];
   for (let i = 0; i < uniqueSkuCount; i += 1) {
     const skuGroup = randItem(SKU_GROUPS);
     const skuId = `${skuGroup}-${randInt(100, 999)}`;
-    const baseZoneIndex = i;
+    const baseZoneIndex = randInt(0, ZONES.length - 1);
     skuDefs.push({ skuId, skuGroup, baseZoneIndex });
   }
 
   const ratioMsk1 = 0.4 + Math.random() * 0.2; // 40–60%
-  let prevSkuIndex = -1;
 
   for (let i = 0; i < orderSize; i += 1) {
-    let sku;
-    const repeatSame = Math.random() < 0.05 && prevSkuIndex >= 0;
-    if (repeatSame) {
-      sku = skuDefs[prevSkuIndex];
-    } else {
-      const otherIndices = skuDefs
-        .map((_, idx) => idx)
-        .filter((idx) => idx !== prevSkuIndex);
-      const idx =
-        otherIndices.length > 0
-          ? otherIndices[Math.floor(Math.random() * otherIndices.length)]
-          : Math.floor(Math.random() * skuDefs.length);
-      prevSkuIndex = idx;
-      sku = skuDefs[idx];
-    }
-    const zones = [ZONES[sku.baseZoneIndex]];
     const volume = randInt(5, 14);
+    const hasDuplicate = Math.random() < 0.05 && volume >= 2;
+    const indicesPool = [];
+    for (let idx = 0; idx < skuDefs.length; idx += 1) {
+      indicesPool.push(idx);
+    }
+    const items = [];
+    const zoneSet = new Set();
+
+    if (hasDuplicate) {
+      for (let p = 0; p < volume - 1; p += 1) {
+        const poolIdx = Math.floor(Math.random() * indicesPool.length);
+        const skuIndex = indicesPool.splice(poolIdx, 1)[0];
+        const def = skuDefs[skuIndex];
+        const zone = ZONES[def.baseZoneIndex];
+        items.push({
+          skuId: def.skuId,
+          skuGroup: def.skuGroup,
+          zone,
+        });
+        zoneSet.add(zone);
+      }
+      const dup = randItem(items);
+      items.push({
+        skuId: dup.skuId,
+        skuGroup: dup.skuGroup,
+        zone: dup.zone,
+      });
+    } else {
+      for (let p = 0; p < volume; p += 1) {
+        const poolIdx = Math.floor(Math.random() * indicesPool.length);
+        const skuIndex = indicesPool.splice(poolIdx, 1)[0];
+        const def = skuDefs[skuIndex];
+        const zone = ZONES[def.baseZoneIndex];
+        items.push({
+          skuId: def.skuId,
+          skuGroup: def.skuGroup,
+          zone,
+        });
+        zoneSet.add(zone);
+      }
+    }
+
+    const zones = Array.from(zoneSet).sort();
     const warehouse = Math.random() < ratioMsk1 ? "MSK-1" : "MSK-2";
     const session = randItem(SESSIONS);
 
     boxes.push({
       id: `BOX-${i + 1}`,
-      skuGroup: sku.skuGroup,
-      skuId: sku.skuId,
+      items,
       zones,
       warehouse,
       session,
-      volume,
+      volume: items.length,
     });
   }
   state.boxes = boxes;
@@ -189,8 +214,14 @@ function makeTask(id, boxes) {
   const zoneSet = new Set();
   let volume = 0;
   boxes.forEach((b) => {
-    skuSet.add(b.skuId);
-    b.zones.forEach((z) => zoneSet.add(z));
+    if (Array.isArray(b.items)) {
+      b.items.forEach((item) => {
+        skuSet.add(item.skuId);
+        zoneSet.add(item.zone);
+      });
+    } else {
+      b.zones.forEach((z) => zoneSet.add(z));
+    }
     volume += b.volume;
   });
   const zonesArray = Array.from(zoneSet).sort();
@@ -300,7 +331,6 @@ function assignClustered() {
       unassigned.delete(seed);
       const cluster = [seed];
       const clusterZones = new Set(seed.zones);
-      const clusterSkus = new Set([seed.skuId]);
       let clusterVol = seed.volume;
       const cand = Array.from(unassigned);
       cand.sort((a, b) => b.zones.length - a.zones.length);
@@ -313,7 +343,6 @@ function assignClustered() {
         cluster.push(box);
         clusterVol += box.volume;
         box.zones.forEach((z) => clusterZones.add(z));
-        clusterSkus.add(box.skuId);
         unassigned.delete(box);
       }
       const task = makeTask(`C-${taskId}`, cluster);
