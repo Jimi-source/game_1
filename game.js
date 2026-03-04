@@ -298,10 +298,7 @@ function assignClustered() {
   bySeg.forEach((boxes) => {
     const unassigned = new Set(boxes);
     const totalBoxesSeg = boxes.length;
-    const totalVolumeSeg = boxes.reduce(
-      (sum, b) => sum + b.volume,
-      0
-    );
+    const totalVolumeSeg = boxes.reduce((sum, b) => sum + b.volume, 0);
     let maxBoxes = 40;
     if (effectiveCount) {
       maxBoxes = Math.max(
@@ -322,6 +319,13 @@ function assignClustered() {
       unassigned.delete(seed);
       const cluster = [seed];
       const clusterZones = new Set(seed.zones);
+      const zoneTrayCounts = new Map();
+      if (Array.isArray(seed.items)) {
+        seed.items.forEach((item) => {
+          const prev = zoneTrayCounts.get(item.zone) || 0;
+          zoneTrayCounts.set(item.zone, prev + 1);
+        });
+      }
       let clusterVol = seed.volume;
       const cand = Array.from(unassigned);
       cand.sort((a, b) => b.zones.length - a.zones.length);
@@ -331,9 +335,28 @@ function assignClustered() {
         const boxZones = new Set(box.zones);
         const simZones = jaccard(clusterZones, boxZones);
         if (simZones < 0.4) continue;
+        const boxZoneCounts = new Map();
+        if (Array.isArray(box.items)) {
+          box.items.forEach((item) => {
+            const prev = boxZoneCounts.get(item.zone) || 0;
+            boxZoneCounts.set(item.zone, prev + 1);
+          });
+        }
+        let exceedsCapacity = false;
+        boxZoneCounts.forEach((cnt, zone) => {
+          const current = zoneTrayCounts.get(zone) || 0;
+          if (current + cnt > 40) {
+            exceedsCapacity = true;
+          }
+        });
+        if (exceedsCapacity) continue;
         cluster.push(box);
         clusterVol += box.volume;
         box.zones.forEach((z) => clusterZones.add(z));
+        boxZoneCounts.forEach((cnt, zone) => {
+          const prev = zoneTrayCounts.get(zone) || 0;
+          zoneTrayCounts.set(zone, prev + cnt);
+        });
         unassigned.delete(box);
       }
       const task = makeTask(`C-${taskId}`, cluster);
