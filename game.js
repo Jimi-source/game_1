@@ -292,6 +292,9 @@ function assignClustered() {
   );
   let taskId = 1;
   const { boxesTarget, volumeTarget, countTarget } = getChunkSettings();
+  const defaultChunksPerSegment = 20;
+  const effectiveCount = countTarget || (boxesTarget && volumeTarget ? null : defaultChunksPerSegment);
+
   bySeg.forEach((boxes) => {
     const unassigned = new Set(boxes);
     const totalBoxesSeg = boxes.length;
@@ -299,11 +302,11 @@ function assignClustered() {
       (sum, b) => sum + b.volume,
       0
     );
-    let maxBoxes = 10;
-    if (countTarget) {
+    let maxBoxes = 40;
+    if (effectiveCount) {
       maxBoxes = Math.max(
         3,
-        Math.round(totalBoxesSeg / countTarget)
+        Math.round(totalBoxesSeg / effectiveCount)
       );
     } else if (boxesTarget) {
       maxBoxes = Math.max(3, boxesTarget);
@@ -311,7 +314,7 @@ function assignClustered() {
     const volumeCap = volumeTarget
       ? Math.max(
           volumeTarget,
-          Math.round(totalVolumeSeg / Math.max(1, countTarget || 1))
+          Math.round(totalVolumeSeg / Math.max(1, effectiveCount || 1))
         )
       : null;
     while (unassigned.size > 0) {
