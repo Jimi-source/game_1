@@ -50,6 +50,8 @@ const MAP_LAYOUT = [
 
 const state = {
   boxes: [],
+  trays: [],
+  boxCells: [],
   tasksClustered: [],
   tasksBaseline: [],
   scheduleClustered: [],
@@ -90,48 +92,102 @@ function generateBoxes() {
   }
 
   const ratioMsk1 = 0.4 + Math.random() * 0.2; // 40–60%
+  const trays = [];
+  const boxCells = [];
+  const cellsByZone = new Map();
+
+  const MAX_TRAYS_PER_CELL = 40;
+
+  function getCellForZone(zone) {
+    let cells = cellsByZone.get(zone);
+    if (!cells) {
+      cells = [];
+      cellsByZone.set(zone, cells);
+    }
+    let cell = cells.find((c) => c.trayIds.length < MAX_TRAYS_PER_CELL);
+    if (!cell) {
+      cell = {
+        id: `CELL-${zone}-${cells.length + 1}`,
+        zone,
+        trayIds: [],
+      };
+      cells.push(cell);
+      boxCells.push(cell);
+    }
+    return cell;
+  }
+
+  function createTrayForSku(def) {
+    const zone = ZONES[def.baseZoneIndex];
+    const cell = getCellForZone(zone);
+    const trayId = `TRAY-${trays.length + 1}`;
+    const tray = {
+      trayId,
+      skuId: def.skuId,
+      skuGroup: def.skuGroup,
+      zone,
+      cellId: cell.id,
+    };
+    trays.push(tray);
+    cell.trayIds.push(trayId);
+    return tray;
+  }
 
   for (let i = 0; i < orderSize; i += 1) {
     const volume = randInt(5, 14);
     const hasDuplicate = Math.random() < 0.05 && volume >= 2;
-    const indicesPool = [];
-    for (let idx = 0; idx < skuDefs.length; idx += 1) {
-      indicesPool.push(idx);
-    }
     const items = [];
     const zoneSet = new Set();
 
     if (hasDuplicate) {
-      for (let p = 0; p < volume - 1; p += 1) {
-        const poolIdx = Math.floor(Math.random() * indicesPool.length);
-        const skuIndex = indicesPool.splice(poolIdx, 1)[0];
-        const def = skuDefs[skuIndex];
-        const zone = ZONES[def.baseZoneIndex];
-        items.push({
-          skuId: def.skuId,
-          skuGroup: def.skuGroup,
-          zone,
-        });
-        zoneSet.add(zone);
+      // volume - 1 разных SKU, один из них дублируется
+      const indices = [];
+      for (let idx = 0; idx < skuDefs.length; idx += 1) {
+        indices.push(idx);
       }
-      const dup = randItem(items);
-      items.push({
-        skuId: dup.skuId,
-        skuGroup: dup.skuGroup,
-        zone: dup.zone,
-      });
-    } else {
-      for (let p = 0; p < volume; p += 1) {
-        const poolIdx = Math.floor(Math.random() * indicesPool.length);
-        const skuIndex = indicesPool.splice(poolIdx, 1)[0];
+      for (let p = 0; p < volume - 1; p += 1) {
+        const pickIdx = Math.floor(Math.random() * indices.length);
+        const skuIndex = indices.splice(pickIdx, 1)[0];
         const def = skuDefs[skuIndex];
-        const zone = ZONES[def.baseZoneIndex];
+        const tray = createTrayForSku(def);
         items.push({
-          skuId: def.skuId,
-          skuGroup: def.skuGroup,
-          zone,
+          trayId: tray.trayId,
+          skuId: tray.skuId,
+          skuGroup: tray.skuGroup,
+          zone: tray.zone,
+          cellId: tray.cellId,
         });
-        zoneSet.add(zone);
+        zoneSet.add(tray.zone);
+      }
+      const dupItem = randItem(items);
+      const dupDef = skuDefs.find((d) => d.skuId === dupItem.skuId) || skuDefs[0];
+      const dupTray = createTrayForSku(dupDef);
+      items.push({
+        trayId: dupTray.trayId,
+        skuId: dupTray.skuId,
+        skuGroup: dupTray.skuGroup,
+        zone: dupTray.zone,
+        cellId: dupTray.cellId,
+      });
+      zoneSet.add(dupTray.zone);
+    } else {
+      const indices = [];
+      for (let idx = 0; idx < skuDefs.length; idx += 1) {
+        indices.push(idx);
+      }
+      for (let p = 0; p < volume; p += 1) {
+        const pickIdx = Math.floor(Math.random() * indices.length);
+        const skuIndex = indices.splice(pickIdx, 1)[0];
+        const def = skuDefs[skuIndex];
+        const tray = createTrayForSku(def);
+        items.push({
+          trayId: tray.trayId,
+          skuId: tray.skuId,
+          skuGroup: tray.skuGroup,
+          zone: tray.zone,
+          cellId: tray.cellId,
+        });
+        zoneSet.add(tray.zone);
       }
     }
 
@@ -149,6 +205,8 @@ function generateBoxes() {
     });
   }
   state.boxes = boxes;
+  state.trays = trays;
+  state.boxCells = boxCells;
   state.tasksClustered = [];
   state.tasksBaseline = [];
   state.scheduleClustered = [];
