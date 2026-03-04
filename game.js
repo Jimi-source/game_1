@@ -12,6 +12,11 @@ const cityMap = document.getElementById("cityMap");
 const chunkBoxesInput = document.getElementById("chunkBoxes");
 const chunkVolumeInput = document.getElementById("chunkVolume");
 const chunkCountInput = document.getElementById("chunkCount");
+const btnPlan = document.getElementById("btnPlan");
+const assignModal = document.getElementById("assignModal");
+const assignModalClose = document.getElementById("assignModalClose");
+const assignTasksBody = document.getElementById("assignTasksBody");
+const btnMergeChunks = document.getElementById("btnMergeChunks");
 
 const kpiTimeClustered = document.getElementById("kpiTimeClustered");
 const kpiTasksClustered = document.getElementById("kpiTasksClustered");
@@ -56,6 +61,10 @@ const state = {
   actualTimes: {
     clustered: new Map(),
     baseline: new Map(),
+  },
+  assigned: {
+    clustered: new Set(),
+    baseline: new Set(),
   },
   activeScenario: SCENARIOS.clustered,
 };
@@ -118,6 +127,8 @@ function generateBoxes() {
   state.metrics.baseline = null;
    state.actualTimes.clustered = new Map();
    state.actualTimes.baseline = new Map();
+  state.assigned.clustered = new Set();
+  state.assigned.baseline = new Set();
   renderBoxes();
   renderTasks();
   renderCityMap();
@@ -342,6 +353,93 @@ function renderTasks() {
   });
 }
 
+function openAssignModal() {
+  if (!state.tasksClustered.length && !state.tasksBaseline.length) {
+    assignTasks();
+  }
+  const scenario = state.activeScenario;
+  const tasks =
+    scenario === SCENARIOS.clustered
+      ? state.tasksClustered
+      : state.tasksBaseline;
+  const assignedSet = state.assigned[scenario];
+  assignTasksBody.innerHTML = "";
+  tasks.forEach((task) => {
+    const row = document.createElement("tr");
+    const totalVolume = task.boxIds.reduce((sum, id) => {
+      const box = state.boxes.find((b) => b.id === id);
+      return sum + (box ? box.volume : 0);
+    }, 0);
+    const isAssigned = assignedSet.has(task.id);
+    row.innerHTML = `
+      <td>
+        <input
+          type="checkbox"
+          class="assign-select"
+          data-id="${task.id}"
+        />
+      </td>
+      <td>${task.id}</td>
+      <td>${task.boxIds.length}</td>
+      <td>${totalVolume}</td>
+      <td>${task.zones.length}</td>
+      <td>${task.jaccardAvg ? task.jaccardAvg.toFixed(2) : "–"}</td>
+      <td>${task.eta.toFixed(1)}</td>
+      <td>
+        <button
+          class="btn ${isAssigned ? "success" : "outlined"} assign-btn"
+          data-id="${task.id}"
+        >
+          ${isAssigned ? "Назначено" : "Назначить"}
+        </button>
+      </td>
+    `;
+    assignTasksBody.appendChild(row);
+  });
+  assignModal.classList.remove("hidden");
+}
+
+function mergeSelectedChunks() {
+  const scenario = state.activeScenario;
+  const tasksArr =
+    scenario === SCENARIOS.clustered
+      ? state.tasksClustered
+      : state.tasksBaseline;
+  const checkboxes = assignTasksBody.querySelectorAll(
+    ".assign-select:checked"
+  );
+  const ids = Array.from(checkboxes).map((el) => el.dataset.id);
+  if (ids.length < 2) return;
+  const selected = tasksArr.filter((t) => ids.includes(t.id));
+  const boxesById = new Map(
+    state.boxes.map((b) => [b.id, b])
+  );
+  const mergedBoxes = [];
+  selected.forEach((task) => {
+    task.boxIds.forEach((id) => {
+      const box = boxesById.get(id);
+      if (box) mergedBoxes.push(box);
+    });
+  });
+  const newIdPrefix = scenario === SCENARIOS.clustered ? "C" : "B";
+  const newId = `${newIdPrefix}-M${Date.now().toString().slice(-4)}`;
+  const newTask = makeTask(newId, mergedBoxes);
+  newTask.jaccardAvg =
+    selected.reduce((sum, t) => sum + (t.jaccardAvg || 0), 0) /
+    Math.max(1, selected.length);
+  const remaining = tasksArr.filter((t) => !ids.includes(t.id));
+  remaining.push(newTask);
+  if (scenario === SCENARIOS.clustered) {
+    state.tasksClustered = remaining;
+  } else {
+    state.tasksBaseline = remaining;
+  }
+  state.assigned[scenario] = new Set();
+  openAssignModal();
+  renderTasks();
+  renderKpi();
+}
+
 function renderCityMap() {
   cityMap.innerHTML = "";
   for (let i = 0; i < MAP_LAYOUT.length - 1; i += 1) {
@@ -483,12 +581,15 @@ function renderKpi() {
   } else {
     kpiSavings.textContent = "–";
   }
-  if (state.tasksClustered.length) {
+  const scenario = state.activeScenario;
+  const tasks =
+    scenario === SCENARIOS.clustered
+      ? state.tasksClustered
+      : state.tasksBaseline;
+  if (tasks.length) {
     const avgJ =
-      state.tasksClustered.reduce(
-        (sum, t) => sum + (t.jaccardAvg || 0),
-        0
-      ) / state.tasksClustered.length;
+      tasks.reduce((sum, t) => sum + (t.jaccardAvg || 0), 0) /
+      tasks.length;
     kpiSimilarity.textContent = `Средний Jaccard: ${avgJ.toFixed(2)}`;
   } else {
     kpiSimilarity.textContent = "Средний Jaccard: –";
@@ -498,9 +599,12 @@ function renderKpi() {
   state.boxes.forEach((b) => {
     totalByWh[b.warehouse] = (totalByWh[b.warehouse] || 0) + 1;
   });
-  const allTasks = state.tasksClustered.concat(state.tasksBaseline);
   const coveredIds = new Set();
-  allTasks.forEach((t) => t.boxIds.forEach((id) => coveredIds.add(id)));
+  const assignedSet = state.assigned[scenario];
+  tasks.forEach((t) => {
+    if (!assignedSet.size || !assignedSet.has(t.id)) return;
+    t.boxIds.forEach((id) => coveredIds.add(id));
+  });
   state.boxes.forEach((b) => {
     if (coveredIds.has(b.id)) {
       coveredByWh[b.warehouse] =
@@ -554,6 +658,37 @@ btnAssign.addEventListener("click", () => {
   renderKpi();
 });
 btnRun.addEventListener("click", runShift);
+
+btnPlan.addEventListener("click", () => {
+  openAssignModal();
+});
+
+assignModalClose.addEventListener("click", () => {
+  assignModal.classList.add("hidden");
+});
+
+assignModal.addEventListener("click", (event) => {
+  if (event.target === assignModal) {
+    assignModal.classList.add("hidden");
+  }
+});
+
+btnMergeChunks.addEventListener("click", mergeSelectedChunks);
+
+assignTasksBody.addEventListener("click", (event) => {
+  const btn = event.target.closest(".assign-btn");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const scenario = state.activeScenario;
+  const set = state.assigned[scenario];
+  if (set.has(id)) {
+    set.delete(id);
+  } else {
+    set.add(id);
+  }
+  openAssignModal();
+  renderKpi();
+});
 
 pickersInput.addEventListener("change", () => {
   renderKpi();

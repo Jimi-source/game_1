@@ -67,6 +67,9 @@
             <button id="btnAssign" class="btn outlined">
               Сгенерировать задания на комплектовку
             </button>
+            <button id="btnPlan" class="btn">
+              Назначить задания на комплектовку
+            </button>
             <button id="btnRun" class="btn success">Запустить смену</button>
             <div class="inline">
               <label for="pickers">Сборщиков</label>
@@ -198,6 +201,39 @@
           </div>
         </div>
       </section>
+
+      <div id="assignModal" class="modal hidden">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Назначение заданий на комплектовку</h2>
+            <button id="assignModalClose" class="btn outlined">
+              Закрыть
+            </button>
+          </div>
+          <div class="modal-actions">
+            <button id="btnMergeChunks" class="btn">
+              Объединить выделенные чанки
+            </button>
+          </div>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Задание</th>
+                  <th>Коробок</th>
+                  <th>Лотков</th>
+                  <th>Зон</th>
+                  <th>Jaccard</th>
+                  <th>ETA (мин)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="assignTasksBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="./game.js"></script>
