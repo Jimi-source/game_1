@@ -302,6 +302,14 @@ body {
   overflow: hidden;
 }
 
+.baseline-chunk {
+  margin-left: auto;
+}
+
+.baseline-chunk input {
+  width: 72px;
+}
+
 .tab {
   padding: 5px 10px;
   border: 0;

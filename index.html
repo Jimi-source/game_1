@@ -96,12 +96,11 @@
             <table class="table">
               <thead>
                 <tr>
-                  <th>Коробка</th>
-                  <th>SKU</th>
-                  <th>Зоны BOX</th>
                   <th>Склад</th>
                   <th>Сессия</th>
-                  <th>Лотков</th>
+                  <th>Коробок</th>
+                  <th>Всего лотков</th>
+                  <th>Сред. лотков в коробке</th>
                 </tr>
               </thead>
               <tbody id="boxesTableBody"></tbody>
@@ -123,6 +122,16 @@
               <button class="tab" data-scenario="baseline" id="tabBaseline">
                 Без кластеризации
               </button>
+            </div>
+            <div class="inline baseline-chunk">
+              <label for="baselineChunk">Чанк (без кластеризации)</label>
+              <input
+                id="baselineChunk"
+                type="number"
+                min="5"
+                max="200"
+                value="40"
+              />
             </div>
           </div>
           <div class="table-wrap">

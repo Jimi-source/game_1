@@ -9,6 +9,7 @@ const compareModeInput = document.getElementById("compareMode");
 const tabClustered = document.getElementById("tabClustered");
 const tabBaseline = document.getElementById("tabBaseline");
 const cityMap = document.getElementById("cityMap");
+const baselineChunkInput = document.getElementById("baselineChunk");
 
 const kpiTimeClustered = document.getElementById("kpiTimeClustered");
 const kpiTasksClustered = document.getElementById("kpiTasksClustered");
@@ -66,7 +67,7 @@ function randInt(min, max) {
 }
 
 function generateBoxes() {
-  const orderSize = randInt(25, 50);
+  const orderSize = randInt(2000, 3000);
   const boxes = [];
   const uniqueSkuCount = randInt(4, 9);
   const skuDefs = [];
@@ -74,18 +75,18 @@ function generateBoxes() {
     const skuGroup = randItem(SKU_GROUPS);
     const skuId = `${skuGroup}-${randInt(100, 999)}`;
     const baseZoneIndex = randInt(0, ZONES.length - 1);
-    const warehouse = randItem(WAREHOUSES);
-    const session = randItem(SESSIONS);
-    skuDefs.push({ skuId, skuGroup, baseZoneIndex, warehouse, session });
+    skuDefs.push({ skuId, skuGroup, baseZoneIndex });
   }
+
+  const ratioMsk1 = 0.4 + Math.random() * 0.2; // 40–60%
 
   for (let i = 0; i < orderSize; i += 1) {
     const sku = randItem(skuDefs);
-    const zoneSpread = randInt(0, 1);
+    const zoneSpread = randInt(1, 2);
     const zones = new Set();
     const mainIndex = sku.baseZoneIndex;
     zones.add(ZONES[mainIndex]);
-    if (zoneSpread > 0 && Math.random() < 0.6) {
+    for (let j = 0; j < zoneSpread; j += 1) {
       const neighbor =
         Math.random() < 0.5 ? mainIndex - 1 : mainIndex + 1;
       if (neighbor >= 0 && neighbor < ZONES.length) {
@@ -93,14 +94,16 @@ function generateBoxes() {
       }
     }
     const volume = randInt(5, 14);
+    const warehouse = Math.random() < ratioMsk1 ? "MSK-1" : "MSK-2";
+    const session = randItem(SESSIONS);
 
     boxes.push({
       id: `BOX-${i + 1}`,
       skuGroup: sku.skuGroup,
       skuId: sku.skuId,
       zones: Array.from(zones).sort(),
-      warehouse: sku.warehouse,
-      session: sku.session,
+      warehouse,
+      session,
       volume,
     });
   }
@@ -123,15 +126,22 @@ function generateBoxes() {
 function renderBoxes() {
   boxesTableBody.innerHTML = "";
   boxesSummary.textContent = `${state.boxes.length} коробок`;
-  state.boxes.forEach((box) => {
+  const byWhSession = groupByKey(
+    state.boxes,
+    (b) => `${b.warehouse}::${b.session}`
+  );
+  byWhSession.forEach((boxes, key) => {
+    const [warehouse, session] = key.split("::");
+    const boxCount = boxes.length;
+    const totalVolume = boxes.reduce((sum, b) => sum + b.volume, 0);
+    const avgVolume = totalVolume / boxCount;
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td>${box.id}</td>
-      <td><span class="badge sku">${box.skuId}</span></td>
-      <td>${box.zones.map((z) => `<span class="badge zone">${z}</span>`).join(" ")}</td>
-      <td>${box.warehouse}</td>
-      <td>${box.session}</td>
-      <td>${box.volume}</td>
+      <td>${warehouse}</td>
+      <td>${session}</td>
+      <td>${boxCount}</td>
+      <td>${totalVolume}</td>
+      <td>${avgVolume.toFixed(1)}</td>
     `;
     boxesTableBody.appendChild(tr);
   });
@@ -186,8 +196,12 @@ function assignBaseline() {
   const tasks = [];
   let taskId = 1;
   const shuffled = [...state.boxes].sort(() => Math.random() - 0.5);
+  const baseSize = Math.max(
+    3,
+    Math.min(200, Number(baselineChunkInput.value) || 40)
+  );
   for (let i = 0; i < shuffled.length; ) {
-    const size = randInt(3, 8);
+    const size = randInt(Math.max(3, baseSize - 5), baseSize + 5);
     const slice = shuffled.slice(i, i + size);
     const task = makeTask(`B-${taskId}`, slice);
     task.jaccardAvg = 0;
