@@ -92,7 +92,7 @@ function generateBoxes() {
         zones.add(ZONES[neighbor]);
       }
     }
-    const volume = randInt(5, 42);
+    const volume = randInt(5, 14);
 
     boxes.push({
       id: `BOX-${i + 1}`,
