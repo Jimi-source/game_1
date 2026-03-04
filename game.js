@@ -93,17 +93,9 @@ function generateBoxes() {
 
   for (let i = 0; i < orderSize; i += 1) {
     const sku = randItem(skuDefs);
-    const zoneSpread = randInt(1, 2);
     const zones = new Set();
     const mainIndex = sku.baseZoneIndex;
-    zones.add(ZONES[mainIndex]);
-    for (let j = 0; j < zoneSpread; j += 1) {
-      const neighbor =
-        Math.random() < 0.5 ? mainIndex - 1 : mainIndex + 1;
-      if (neighbor >= 0 && neighbor < ZONES.length) {
-        zones.add(ZONES[neighbor]);
-      }
-    }
+    zones.add(ZONES[mainIndex]); // 1 коробка = 1 BOX
     const volume = randInt(5, 14);
     const warehouse = Math.random() < ratioMsk1 ? "MSK-1" : "MSK-2";
     const session = randItem(SESSIONS);
@@ -340,9 +332,6 @@ function renderTasks() {
       <td>${task.id}</td>
       <td>${task.boxIds.length}</td>
       <td>${task.skuCount}</td>
-      <td>${task.zones
-        .map((z) => `<span class="badge zone">${z}</span>`)
-        .join(" ")}</td>
       <td>${task.jaccardAvg ? task.jaccardAvg.toFixed(2) : "–"}</td>
       <td>${task.warehouse} / ${task.session}</td>
       <td>${task.complexity.toFixed(1)}</td>
