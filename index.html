@@ -13,32 +13,78 @@
     <div class="app">
       <header class="topbar">
         <div class="brand">
-          <span class="brand-mark">WMS</span>
+          <span class="brand-mark">3.0</span>
           <div>
-            <div class="brand-title">WMS Pick Simulator</div>
+            <div class="brand-title">Управление комплектовкой 3.0</div>
             <div class="brand-sub">
-              Эмулятор комплектовки кастомных коробок с кластеризацией
+              Эмулятор комплектовки кастомных коробок и сменных заданий
             </div>
           </div>
         </div>
-        <div class="controls">
-          <button id="btnGenerate" class="btn primary">
-            Получить задание на комплектовку
-          </button>
-          <button id="btnAssign" class="btn">
-            Сгенерировать задания на комплектовку
-          </button>
-          <div class="inline">
-            <label for="pickers">Сборщиков</label>
-            <input id="pickers" type="number" min="1" max="12" value="4" />
+        <div class="topbar-filters">
+          <div class="filter-group">
+            <label for="filterDate">Дата</label>
+            <input id="filterDate" type="date" />
           </div>
-          <button id="btnRun" class="btn success">Запустить смену</button>
-          <label class="inline toggle">
-            <input id="compareMode" type="checkbox" checked />
-            <span>Режим сравнения без кластеризации</span>
-          </label>
+          <div class="filter-group">
+            <label for="filterCity">Город</label>
+            <input id="filterCity" type="text" placeholder="Все города" />
+          </div>
+          <div class="filter-group">
+            <label for="filterBlock">Блокировка</label>
+            <input
+              id="filterBlock"
+              type="text"
+              placeholder="Все заказы"
+              disabled
+            />
+          </div>
         </div>
       </header>
+
+      <section class="status-strip">
+        <div class="status-header">
+          <div class="status-title">
+            Окончательный заказ загружен <span id="statusLoadedAt">–</span>
+          </div>
+          <div class="status-bar">
+            <div class="status-bar-fill" id="statusProgress"></div>
+          </div>
+        </div>
+        <div class="status-metrics">
+          <div class="status-block">
+            <div class="status-label">Осталось коробок</div>
+            <div class="status-value" id="statusRemaining">0</div>
+          </div>
+          <div class="status-block">
+            <div class="status-label">Прогноз окончания</div>
+            <div class="status-value" id="statusEta">–</div>
+          </div>
+          <div class="status-actions">
+            <button id="btnGenerate" class="btn primary">
+              Получить задание на комплектовку
+            </button>
+            <button id="btnAssign" class="btn outlined">
+              Сгенерировать задания на комплектовку
+            </button>
+            <button id="btnRun" class="btn success">Запустить смену</button>
+            <div class="inline">
+              <label for="pickers">Сборщиков</label>
+              <input
+                id="pickers"
+                type="number"
+                min="1"
+                max="12"
+                value="4"
+              />
+            </div>
+            <label class="inline toggle">
+              <input id="compareMode" type="checkbox" checked />
+              <span>Режим сравнения без кластеризации</span>
+            </label>
+          </div>
+        </div>
+      </section>
 
       <main class="layout">
         <section class="panel">
