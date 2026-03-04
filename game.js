@@ -346,17 +346,40 @@ function assignClustered() {
     state.boxes,
     (b) => `${b.warehouse}::${b.session}`
   );
+  const segments = Array.from(bySeg.entries());
+  const totalBoxes = state.boxes.length;
   let taskId = 1;
   const { boxesTarget, volumeTarget, countTarget } = getChunkSettings();
   const defaultChunksPerSegment = 20;
-  const effectiveCount = countTarget || (boxesTarget && volumeTarget ? null : defaultChunksPerSegment);
 
-  bySeg.forEach((boxes) => {
-    const unassigned = new Set(boxes);
+  const chunksPerSegment = [];
+  if (countTarget && totalBoxes > 0) {
+    const segSizes = segments.map(([, boxes]) => boxes.length);
+    const total = segSizes.reduce((a, b) => a + b, 0);
+    let sum = 0;
+    segSizes.forEach((size, i) => {
+      const c = i < segSizes.length - 1
+        ? Math.round((countTarget * size) / total)
+        : countTarget - sum;
+      chunksPerSegment.push(Math.max(0, c));
+      sum += Math.max(0, c);
+    });
+    if (sum !== countTarget && chunksPerSegment.length > 0) {
+      const idx = chunksPerSegment.indexOf(Math.max(...chunksPerSegment));
+      chunksPerSegment[idx] = Math.max(0, chunksPerSegment[idx] + countTarget - sum);
+    }
+  }
+
+  segments.forEach(([, boxes], segIndex) => {
     const totalBoxesSeg = boxes.length;
     const totalVolumeSeg = boxes.reduce((sum, b) => sum + b.volume, 0);
+    const effectiveCount = countTarget
+      ? (chunksPerSegment[segIndex] ?? defaultChunksPerSegment)
+      : (boxesTarget && volumeTarget ? null : defaultChunksPerSegment);
+    if (countTarget && effectiveCount <= 0) return;
+    const unassigned = new Set(boxes);
     let maxBoxes = 40;
-    if (effectiveCount) {
+    if (effectiveCount && effectiveCount > 0) {
       maxBoxes = Math.max(
         3,
         Math.round(totalBoxesSeg / effectiveCount)
