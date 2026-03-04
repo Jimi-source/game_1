@@ -302,12 +302,13 @@ body {
   overflow: hidden;
 }
 
-.baseline-chunk {
+.chunk-settings {
   margin-left: auto;
+  gap: 4px;
 }
 
-.baseline-chunk input {
-  width: 72px;
+.chunk-settings input {
+  width: 70px;
 }
 
 .tab {

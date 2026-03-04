@@ -9,7 +9,9 @@ const compareModeInput = document.getElementById("compareMode");
 const tabClustered = document.getElementById("tabClustered");
 const tabBaseline = document.getElementById("tabBaseline");
 const cityMap = document.getElementById("cityMap");
-const baselineChunkInput = document.getElementById("baselineChunk");
+const chunkBoxesInput = document.getElementById("chunkBoxes");
+const chunkVolumeInput = document.getElementById("chunkVolume");
+const chunkCountInput = document.getElementById("chunkCount");
 
 const kpiTimeClustered = document.getElementById("kpiTimeClustered");
 const kpiTasksClustered = document.getElementById("kpiTasksClustered");
@@ -192,22 +194,57 @@ function makeTask(id, boxes) {
   };
 }
 
+function getChunkSettings() {
+  const boxes = Number(chunkBoxesInput.value);
+  const volume = Number(chunkVolumeInput.value);
+  const count = Number(chunkCountInput.value);
+  return {
+    boxesTarget: Number.isFinite(boxes) && boxes > 0 ? boxes : null,
+    volumeTarget: Number.isFinite(volume) && volume > 0 ? volume : null,
+    countTarget: Number.isFinite(count) && count > 0 ? count : null,
+  };
+}
+
 function assignBaseline() {
   const tasks = [];
   let taskId = 1;
   const shuffled = [...state.boxes].sort(() => Math.random() - 0.5);
-  const baseSize = Math.max(
-    3,
-    Math.min(200, Number(baselineChunkInput.value) || 40)
+  const totalBoxes = shuffled.length;
+  const totalVolume = shuffled.reduce(
+    (sum, b) => sum + b.volume,
+    0
   );
-  for (let i = 0; i < shuffled.length; ) {
-    const size = randInt(Math.max(3, baseSize - 5), baseSize + 5);
-    const slice = shuffled.slice(i, i + size);
-    const task = makeTask(`B-${taskId}`, slice);
-    task.jaccardAvg = 0;
-    tasks.push(task);
-    taskId += 1;
-    i += size;
+  const { boxesTarget, volumeTarget, countTarget } = getChunkSettings();
+  let baseBoxes = 40;
+  if (countTarget) {
+    baseBoxes = Math.max(3, Math.round(totalBoxes / countTarget));
+  } else if (boxesTarget) {
+    baseBoxes = Math.max(3, boxesTarget);
+  }
+  let current = [];
+  let currentVol = 0;
+  for (let i = 0; i < shuffled.length; i += 1) {
+    const box = shuffled[i];
+    current.push(box);
+    currentVol += box.volume;
+    const remaining = totalBoxes - (i + 1);
+    const enoughBoxes = boxesTarget
+      ? current.length >= boxesTarget
+      : current.length >= baseBoxes;
+    const enoughVolume = volumeTarget
+      ? currentVol >= volumeTarget
+      : false;
+    const mustClose =
+      current.length >= 3 &&
+      (enoughBoxes || enoughVolume || remaining === 0);
+    if (mustClose) {
+      const task = makeTask(`B-${taskId}`, current);
+      task.jaccardAvg = 0;
+      tasks.push(task);
+      taskId += 1;
+      current = [];
+      currentVol = 0;
+    }
   }
   state.tasksBaseline = tasks;
 }
@@ -219,22 +256,46 @@ function assignClustered() {
     (b) => `${b.warehouse}::${b.session}`
   );
   let taskId = 1;
+  const { boxesTarget, volumeTarget, countTarget } = getChunkSettings();
   bySeg.forEach((boxes) => {
     const unassigned = new Set(boxes);
+    const totalBoxesSeg = boxes.length;
+    const totalVolumeSeg = boxes.reduce(
+      (sum, b) => sum + b.volume,
+      0
+    );
+    let maxBoxes = 10;
+    if (countTarget) {
+      maxBoxes = Math.max(
+        3,
+        Math.round(totalBoxesSeg / countTarget)
+      );
+    } else if (boxesTarget) {
+      maxBoxes = Math.max(3, boxesTarget);
+    }
+    const volumeCap = volumeTarget
+      ? Math.max(
+          volumeTarget,
+          Math.round(totalVolumeSeg / Math.max(1, countTarget || 1))
+        )
+      : null;
     while (unassigned.size > 0) {
       const seed = unassigned.values().next().value;
       unassigned.delete(seed);
       const cluster = [seed];
       const clusterZones = new Set(seed.zones);
       const clusterSkus = new Set([seed.skuId]);
+      let clusterVol = seed.volume;
       const cand = Array.from(unassigned);
       cand.sort((a, b) => b.zones.length - a.zones.length);
       for (const box of cand) {
-        if (cluster.length >= 10) break;
+        if (cluster.length >= maxBoxes) break;
+        if (volumeCap && clusterVol >= volumeCap) break;
         const boxZones = new Set(box.zones);
         const simZones = jaccard(clusterZones, boxZones);
         if (simZones < 0.4) continue;
         cluster.push(box);
+        clusterVol += box.volume;
         box.zones.forEach((z) => clusterZones.add(z));
         clusterSkus.add(box.skuId);
         unassigned.delete(box);

@@ -123,15 +123,13 @@
                 Без кластеризации
               </button>
             </div>
-            <div class="inline baseline-chunk">
-              <label for="baselineChunk">Чанк (без кластеризации)</label>
-              <input
-                id="baselineChunk"
-                type="number"
-                min="5"
-                max="200"
-                value="40"
-              />
+            <div class="inline chunk-settings">
+              <label for="chunkBoxes">Коробок в чанке</label>
+              <input id="chunkBoxes" type="number" min="1" />
+              <label for="chunkVolume">Лотков в чанке</label>
+              <input id="chunkVolume" type="number" min="1" />
+              <label for="chunkCount">Кол-во чанков</label>
+              <input id="chunkCount" type="number" min="1" />
             </div>
           </div>
           <div class="table-wrap">
