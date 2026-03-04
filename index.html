@@ -42,6 +42,23 @@
         </div>
       </header>
 
+      <section class="segment-bars">
+        <div class="segment-bar-block">
+          <div class="segment-bar-label">MSK-1</div>
+          <div class="segment-bar-track">
+            <div class="segment-bar-fill" id="segmentBarMsk1"></div>
+          </div>
+          <div class="segment-bar-value" id="segmentValueMsk1">0 / 0</div>
+        </div>
+        <div class="segment-bar-block">
+          <div class="segment-bar-label">MSK-2</div>
+          <div class="segment-bar-track">
+            <div class="segment-bar-fill" id="segmentBarMsk2"></div>
+          </div>
+          <div class="segment-bar-value" id="segmentValueMsk2">0 / 0</div>
+        </div>
+      </section>
+
       <section class="status-strip">
         <div class="status-header">
           <div class="status-title">
@@ -81,10 +98,6 @@
                 value="4"
               />
             </div>
-            <label class="inline toggle">
-              <input id="compareMode" type="checkbox" checked />
-              <span>Режим сравнения без кластеризации</span>
-            </label>
           </div>
         </div>
       </section>
@@ -114,18 +127,6 @@
         <section class="panel">
           <div class="panel-header">
             <h2>Задания</h2>
-            <div class="tabs">
-              <button
-                class="tab active"
-                data-scenario="clustered"
-                id="tabClustered"
-              >
-                С кластеризацией
-              </button>
-              <button class="tab" data-scenario="baseline" id="tabBaseline">
-                Без кластеризации
-              </button>
-            </div>
             <div class="inline chunk-settings">
               <label for="chunkBoxes">Коробок в чанке</label>
               <input id="chunkBoxes" type="number" min="1" />
@@ -163,26 +164,18 @@
           </div>
           <div class="kpi-grid">
             <div class="kpi-card">
-              <div class="kpi-label">Время (кластеризация)</div>
+              <div class="kpi-label">Время смены</div>
               <div id="kpiTimeClustered" class="kpi-value">–</div>
               <div class="kpi-sub" id="kpiTasksClustered">– заданий</div>
             </div>
             <div class="kpi-card">
-              <div class="kpi-label">Время (без кластеризации)</div>
-              <div id="kpiTimeBaseline" class="kpi-value">–</div>
-              <div class="kpi-sub" id="kpiTasksBaseline">– заданий</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Экономия времени</div>
-              <div id="kpiSavings" class="kpi-value accent">–</div>
-              <div class="kpi-sub" id="kpiSimilarity">
-                Средний Jaccard: –
-              </div>
+              <div class="kpi-label">Средний Jaccard</div>
+              <div id="kpiSimilarity" class="kpi-value">–</div>
+              <div class="kpi-sub" id="kpiPickers">–</div>
             </div>
             <div class="kpi-card">
               <div class="kpi-label">Средняя загрузка сборщиков</div>
               <div id="kpiUtilization" class="kpi-value">–</div>
-              <div class="kpi-sub" id="kpiPickers">– сборщиков</div>
             </div>
           </div>
         </div>
@@ -192,12 +185,7 @@
             <h2>Таймлайн смены</h2>
           </div>
           <div id="timelineClustered" class="timeline">
-            <div class="timeline-label">С кластеризацией</div>
             <div class="timeline-bars" id="timelineBarsClustered"></div>
-          </div>
-          <div id="timelineBaseline" class="timeline">
-            <div class="timeline-label">Без кластеризации</div>
-            <div class="timeline-bars" id="timelineBarsBaseline"></div>
           </div>
         </div>
       </section>

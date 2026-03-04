@@ -5,10 +5,11 @@ const btnGenerate = document.getElementById("btnGenerate");
 const btnAssign = document.getElementById("btnAssign");
 const btnRun = document.getElementById("btnRun");
 const pickersInput = document.getElementById("pickers");
-const compareModeInput = document.getElementById("compareMode");
-const tabClustered = document.getElementById("tabClustered");
-const tabBaseline = document.getElementById("tabBaseline");
 const cityMap = document.getElementById("cityMap");
+const segmentBarMsk1 = document.getElementById("segmentBarMsk1");
+const segmentBarMsk2 = document.getElementById("segmentBarMsk2");
+const segmentValueMsk1 = document.getElementById("segmentValueMsk1");
+const segmentValueMsk2 = document.getElementById("segmentValueMsk2");
 const chunkBoxesInput = document.getElementById("chunkBoxes");
 const chunkVolumeInput = document.getElementById("chunkVolume");
 const chunkCountInput = document.getElementById("chunkCount");
@@ -20,20 +21,11 @@ const btnMergeChunks = document.getElementById("btnMergeChunks");
 
 const kpiTimeClustered = document.getElementById("kpiTimeClustered");
 const kpiTasksClustered = document.getElementById("kpiTasksClustered");
-const kpiTimeBaseline = document.getElementById("kpiTimeBaseline");
-const kpiTasksBaseline = document.getElementById("kpiTasksBaseline");
-const kpiSavings = document.getElementById("kpiSavings");
 const kpiSimilarity = document.getElementById("kpiSimilarity");
-const kpiUtilization = document.getElementById("kpiUtilization");
 const kpiPickers = document.getElementById("kpiPickers");
+const kpiUtilization = document.getElementById("kpiUtilization");
 
 const timelineBarsClustered = document.getElementById("timelineBarsClustered");
-const timelineBarsBaseline = document.getElementById("timelineBarsBaseline");
-
-const SCENARIOS = {
-  clustered: "clustered",
-  baseline: "baseline",
-};
 
 const WAREHOUSES = ["MSK-1", "MSK-2"];
 const SESSIONS = ["Утро", "День"];
@@ -53,22 +45,9 @@ const state = {
   trays: [],
   boxCells: [],
   tasksClustered: [],
-  tasksBaseline: [],
-  scheduleClustered: [],
-  scheduleBaseline: [],
-  metrics: {
-    clustered: null,
-    baseline: null,
-  },
-  actualTimes: {
-    clustered: new Map(),
-    baseline: new Map(),
-  },
-  assigned: {
-    clustered: new Set(),
-    baseline: new Set(),
-  },
-  activeScenario: SCENARIOS.clustered,
+  metrics: { clustered: null },
+  actualTimes: { clustered: new Map() },
+  assigned: new Set(),
 };
 
 function randItem(arr) {
@@ -208,18 +187,13 @@ function generateBoxes() {
   state.trays = trays;
   state.boxCells = boxCells;
   state.tasksClustered = [];
-  state.tasksBaseline = [];
-  state.scheduleClustered = [];
-  state.scheduleBaseline = [];
   state.metrics.clustered = null;
-  state.metrics.baseline = null;
-   state.actualTimes.clustered = new Map();
-   state.actualTimes.baseline = new Map();
-  state.assigned.clustered = new Set();
-  state.assigned.baseline = new Set();
+  state.actualTimes.clustered = new Map();
+  state.assigned = new Set();
   renderBoxes();
   renderTasks();
   renderCityMap();
+  renderSegmentBars();
   renderKpi();
   renderTimelines();
 }
@@ -310,50 +284,6 @@ function getChunkSettings() {
   };
 }
 
-function assignBaseline() {
-  const tasks = [];
-  let taskId = 1;
-  const shuffled = [...state.boxes].sort(() => Math.random() - 0.5);
-  const totalBoxes = shuffled.length;
-  const totalVolume = shuffled.reduce(
-    (sum, b) => sum + b.volume,
-    0
-  );
-  const { boxesTarget, volumeTarget, countTarget } = getChunkSettings();
-  let baseBoxes = 40;
-  if (countTarget) {
-    baseBoxes = Math.max(3, Math.round(totalBoxes / countTarget));
-  } else if (boxesTarget) {
-    baseBoxes = Math.max(3, boxesTarget);
-  }
-  let current = [];
-  let currentVol = 0;
-  for (let i = 0; i < shuffled.length; i += 1) {
-    const box = shuffled[i];
-    current.push(box);
-    currentVol += box.volume;
-    const remaining = totalBoxes - (i + 1);
-    const enoughBoxes = boxesTarget
-      ? current.length >= boxesTarget
-      : current.length >= baseBoxes;
-    const enoughVolume = volumeTarget
-      ? currentVol >= volumeTarget
-      : false;
-    const mustClose =
-      current.length >= 3 &&
-      (enoughBoxes || enoughVolume || remaining === 0);
-    if (mustClose) {
-      const task = makeTask(`B-${taskId}`, current);
-      task.jaccardAvg = 0;
-      tasks.push(task);
-      taskId += 1;
-      current = [];
-      currentVol = 0;
-    }
-  }
-  state.tasksBaseline = tasks;
-}
-
 function assignClustered() {
   const tasks = [];
   const bySeg = groupByKey(
@@ -418,15 +348,11 @@ function assignClustered() {
 }
 
 function renderTasks() {
-  const scenario = state.activeScenario;
-  const tasks =
-    scenario === SCENARIOS.clustered
-      ? state.tasksClustered
-      : state.tasksBaseline;
+  const assignedIds = state.assigned;
+  const tasksToShow = state.tasksClustered.filter((t) => assignedIds.has(t.id));
   tasksTableBody.innerHTML = "";
-  tasks.forEach((task) => {
-    const actualMap = state.actualTimes[scenario];
-    const actual = actualMap.get(task.id);
+  tasksToShow.forEach((task) => {
+    const actual = state.actualTimes.clustered.get(task.id);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${task.id}</td>
@@ -443,16 +369,38 @@ function renderTasks() {
   });
 }
 
+function renderSegmentBars() {
+  const tasks = state.tasksClustered;
+  const assigned = state.assigned;
+  const byWh = { "MSK-1": { total: 0, assigned: 0 }, "MSK-2": { total: 0, assigned: 0 } };
+  tasks.forEach((t) => {
+    if (byWh[t.warehouse]) {
+      byWh[t.warehouse].total += 1;
+      if (assigned.has(t.id)) byWh[t.warehouse].assigned += 1;
+    }
+  });
+  const pct1 = byWh["MSK-1"].total
+    ? (byWh["MSK-1"].assigned / byWh["MSK-1"].total) * 100
+    : 0;
+  const pct2 = byWh["MSK-2"].total
+    ? (byWh["MSK-2"].assigned / byWh["MSK-2"].total) * 100
+    : 0;
+  if (segmentBarMsk1) {
+    segmentBarMsk1.style.width = `${pct1}%`;
+    segmentValueMsk1.textContent = `${byWh["MSK-1"].assigned} / ${byWh["MSK-1"].total}`;
+  }
+  if (segmentBarMsk2) {
+    segmentBarMsk2.style.width = `${pct2}%`;
+    segmentValueMsk2.textContent = `${byWh["MSK-2"].assigned} / ${byWh["MSK-2"].total}`;
+  }
+}
+
 function openAssignModal() {
-  if (!state.tasksClustered.length && !state.tasksBaseline.length) {
+  if (!state.tasksClustered.length) {
     assignTasks();
   }
-  const scenario = state.activeScenario;
-  const tasks =
-    scenario === SCENARIOS.clustered
-      ? state.tasksClustered
-      : state.tasksBaseline;
-  const assignedSet = state.assigned[scenario];
+  const tasks = state.tasksClustered;
+  const assignedSet = state.assigned;
   assignTasksBody.innerHTML = "";
   tasks.forEach((task) => {
     const row = document.createElement("tr");
@@ -490,11 +438,7 @@ function openAssignModal() {
 }
 
 function mergeSelectedChunks() {
-  const scenario = state.activeScenario;
-  const tasksArr =
-    scenario === SCENARIOS.clustered
-      ? state.tasksClustered
-      : state.tasksBaseline;
+  const tasksArr = state.tasksClustered;
   const checkboxes = assignTasksBody.querySelectorAll(
     ".assign-select:checked"
   );
@@ -511,22 +455,18 @@ function mergeSelectedChunks() {
       if (box) mergedBoxes.push(box);
     });
   });
-  const newIdPrefix = scenario === SCENARIOS.clustered ? "C" : "B";
-  const newId = `${newIdPrefix}-M${Date.now().toString().slice(-4)}`;
+  const newId = `C-M${Date.now().toString().slice(-4)}`;
   const newTask = makeTask(newId, mergedBoxes);
   newTask.jaccardAvg =
     selected.reduce((sum, t) => sum + (t.jaccardAvg || 0), 0) /
     Math.max(1, selected.length);
   const remaining = tasksArr.filter((t) => !ids.includes(t.id));
   remaining.push(newTask);
-  if (scenario === SCENARIOS.clustered) {
-    state.tasksClustered = remaining;
-  } else {
-    state.tasksBaseline = remaining;
-  }
-  state.assigned[scenario] = new Set();
+  state.tasksClustered = remaining;
+  state.assigned = new Set();
   openAssignModal();
   renderTasks();
+  renderSegmentBars();
   renderKpi();
 }
 
@@ -623,119 +563,63 @@ function renderTimelineForScenario(
 }
 
 function renderTimelines() {
-  const compare = compareModeInput.checked;
-  const mClustered = state.metrics.clustered;
-  const mBaseline = state.metrics.baseline;
+  const m = state.metrics.clustered;
   timelineBarsClustered.innerHTML = "";
-  timelineBarsBaseline.innerHTML = "";
-  if (mClustered) {
+  if (m && m.schedule && m.schedule.length) {
     renderTimelineForScenario(
       "clustered",
-      mClustered.schedule,
-      mClustered.makespan,
+      m.schedule,
+      m.makespan,
       timelineBarsClustered
-    );
-  }
-  if (compare && mBaseline) {
-    renderTimelineForScenario(
-      "baseline",
-      mBaseline.schedule,
-      mBaseline.makespan,
-      timelineBarsBaseline
     );
   }
 }
 
 function renderKpi() {
-  const mC = state.metrics.clustered;
-  const mB = state.metrics.baseline;
-  if (mC) {
-    kpiTimeClustered.textContent = `${mC.makespan.toFixed(1)} мин`;
-    kpiTasksClustered.textContent = `${state.tasksClustered.length} заданий`;
-    kpiUtilization.textContent = `${mC.utilization.toFixed(0)} %`;
+  const m = state.metrics.clustered;
+  const assignedTasks = state.tasksClustered.filter((t) =>
+    state.assigned.has(t.id)
+  );
+  if (m) {
+    kpiTimeClustered.textContent = `${m.makespan.toFixed(1)} мин`;
+    kpiTasksClustered.textContent = `${assignedTasks.length} заданий`;
+    kpiUtilization.textContent = `${m.utilization.toFixed(0)} %`;
   } else {
     kpiTimeClustered.textContent = "–";
-    kpiTasksClustered.textContent = "–";
+    kpiTasksClustered.textContent = `${assignedTasks.length} заданий`;
     kpiUtilization.textContent = "–";
   }
-  if (mB) {
-    kpiTimeBaseline.textContent = `${mB.makespan.toFixed(1)} мин`;
-    kpiTasksBaseline.textContent = `${state.tasksBaseline.length} заданий`;
-  } else {
-    kpiTimeBaseline.textContent = "–";
-    kpiTasksBaseline.textContent = "–";
-  }
-  if (mC && mB) {
-    const diff = ((mB.makespan - mC.makespan) / mB.makespan) * 100;
-    kpiSavings.textContent = `${diff.toFixed(1)} %`;
-  } else {
-    kpiSavings.textContent = "–";
-  }
-  const scenario = state.activeScenario;
-  const tasks =
-    scenario === SCENARIOS.clustered
-      ? state.tasksClustered
-      : state.tasksBaseline;
-  if (tasks.length) {
+  if (assignedTasks.length) {
     const avgJ =
-      tasks.reduce((sum, t) => sum + (t.jaccardAvg || 0), 0) /
-      tasks.length;
-    kpiSimilarity.textContent = `Средний Jaccard: ${avgJ.toFixed(2)}`;
+      assignedTasks.reduce((sum, t) => sum + (t.jaccardAvg || 0), 0) /
+      assignedTasks.length;
+    kpiSimilarity.textContent = avgJ.toFixed(2);
+    kpiPickers.textContent = "назначено";
   } else {
-    kpiSimilarity.textContent = "Средний Jaccard: –";
+    kpiSimilarity.textContent = "–";
+    kpiPickers.textContent = "—";
   }
-  const totalByWh = {};
-  const coveredByWh = {};
-  state.boxes.forEach((b) => {
-    totalByWh[b.warehouse] = (totalByWh[b.warehouse] || 0) + 1;
-  });
-  const coveredIds = new Set();
-  const assignedSet = state.assigned[scenario];
-  tasks.forEach((t) => {
-    if (!assignedSet.size || !assignedSet.has(t.id)) return;
-    t.boxIds.forEach((id) => coveredIds.add(id));
-  });
-  state.boxes.forEach((b) => {
-    if (coveredIds.has(b.id)) {
-      coveredByWh[b.warehouse] =
-        (coveredByWh[b.warehouse] || 0) + 1;
-    }
-  });
-  const covMsk1 = totalByWh["MSK-1"]
-    ? ((coveredByWh["MSK-1"] || 0) / totalByWh["MSK-1"]) * 100
-    : 0;
-  const covMsk2 = totalByWh["MSK-2"]
-    ? ((coveredByWh["MSK-2"] || 0) / totalByWh["MSK-2"]) * 100
-    : 0;
-  kpiPickers.textContent = `MSK-1: ${covMsk1.toFixed(
-    0
-  )}% · MSK-2: ${covMsk2.toFixed(0)}%`;
 }
 
 function assignTasks() {
   if (!state.boxes.length) return;
-  assignBaseline();
   assignClustered();
   renderTasks();
+  renderSegmentBars();
 }
 
 function runShift() {
-  if (!state.tasksClustered.length) return;
+  const assignedTasks = state.tasksClustered.filter((t) =>
+    state.assigned.has(t.id)
+  );
+  if (!assignedTasks.length) return;
   const pickers = Math.max(1, Number(pickersInput.value) || 1);
-  const clustered = simulateShift(state.tasksClustered, pickers);
-  state.metrics.clustered = clustered;
+  const result = simulateShift(assignedTasks, pickers);
+  state.metrics.clustered = result;
   state.actualTimes.clustered = new Map();
-  clustered.schedule.forEach((s) => {
+  result.schedule.forEach((s) => {
     state.actualTimes.clustered.set(s.taskId, s.end - s.start);
   });
-  if (compareModeInput.checked && state.tasksBaseline.length) {
-    const baseline = simulateShift(state.tasksBaseline, pickers);
-    state.metrics.baseline = baseline;
-    state.actualTimes.baseline = new Map();
-    baseline.schedule.forEach((s) => {
-      state.actualTimes.baseline.set(s.taskId, s.end - s.start);
-    });
-  }
   renderKpi();
   renderTasks();
   renderTimelines();
@@ -745,6 +629,7 @@ btnGenerate.addEventListener("click", generateBoxes);
 btnAssign.addEventListener("click", () => {
   assignTasks();
   renderCityMap();
+  renderSegmentBars();
   renderKpi();
 });
 btnRun.addEventListener("click", runShift);
@@ -769,14 +654,14 @@ assignTasksBody.addEventListener("click", (event) => {
   const btn = event.target.closest(".assign-btn");
   if (!btn) return;
   const id = btn.dataset.id;
-  const scenario = state.activeScenario;
-  const set = state.assigned[scenario];
-  if (set.has(id)) {
-    set.delete(id);
+  if (state.assigned.has(id)) {
+    state.assigned.delete(id);
   } else {
-    set.add(id);
+    state.assigned.add(id);
   }
   openAssignModal();
+  renderTasks();
+  renderSegmentBars();
   renderKpi();
 });
 
@@ -785,24 +670,6 @@ pickersInput.addEventListener("change", () => {
   renderTimelines();
 });
 
-compareModeInput.addEventListener("change", () => {
-  renderKpi();
-  renderTimelines();
-});
-
-tabClustered.addEventListener("click", () => {
-  state.activeScenario = SCENARIOS.clustered;
-  tabClustered.classList.add("active");
-  tabBaseline.classList.remove("active");
-  renderTasks();
-});
-
-tabBaseline.addEventListener("click", () => {
-  state.activeScenario = SCENARIOS.baseline;
-  tabBaseline.classList.add("active");
-  tabClustered.classList.remove("active");
-  renderTasks();
-});
-
 renderCityMap();
+renderSegmentBars();
 
