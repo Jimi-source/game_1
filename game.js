@@ -330,15 +330,22 @@ function makeTask(id, boxes) {
 }
 
 function getChunkSettings() {
-  const boxes = Number(chunkBoxesInput.value);
-  const volume = Number(chunkVolumeInput.value);
-  const count = Number(chunkCountInput.value);
+  const boxes = Number(chunkBoxesInput?.value);
+  const volume = Number(chunkVolumeInput?.value);
+  const count = parseInt(chunkCountInput?.value, 10);
   return {
     boxesTarget: Number.isFinite(boxes) && boxes > 0 ? boxes : null,
     volumeTarget: Number.isFinite(volume) && volume > 0 ? volume : null,
-    countTarget: Number.isFinite(count) && count > 0 ? count : null,
+    countTarget: !Number.isNaN(count) && count > 0 ? count : null,
   };
 }
+
+const FIXED_SEGMENT_KEYS = [
+  "MSK-1::Утро",
+  "MSK-1::День",
+  "MSK-2::Утро",
+  "MSK-2::День",
+];
 
 function assignClustered(boxesToCluster, startTaskId = 1) {
   const boxes = boxesToCluster ?? state.boxes;
@@ -347,14 +354,15 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
     boxes,
     (b) => `${b.warehouse}::${b.session}`
   );
-  const segments = Array.from(bySeg.entries());
-  const totalBoxes = boxes.length;
-  let taskId = startTaskId;
   const { boxesTarget, volumeTarget, countTarget } = getChunkSettings();
   const MAX_TRAYS_PER_TASK = 6 * 40;
 
+  const segments =
+    countTarget != null && countTarget > 0
+      ? FIXED_SEGMENT_KEYS.map((key) => [key, bySeg.get(key) || []])
+      : Array.from(bySeg.entries());
   const chunksPerSegment = [];
-  if (countTarget && countTarget > 0) {
+  if (countTarget != null && countTarget > 0) {
     segments.forEach(() => chunksPerSegment.push(countTarget));
   } else {
     segments.forEach(([, segBoxes]) => {
@@ -367,7 +375,9 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
     });
   }
 
+  let taskId = startTaskId;
   segments.forEach(([, segBoxes], segIndex) => {
+    if (segBoxes.length === 0) return;
     const totalBoxesSeg = segBoxes.length;
     const totalVolumeSeg = segBoxes.reduce((sum, b) => sum + b.volume, 0);
     const effectiveCount = chunksPerSegment[segIndex] ?? 1;
