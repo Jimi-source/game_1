@@ -29,7 +29,7 @@ const SCENARIOS = {
 
 const WAREHOUSES = ["MSK-1", "MSK-2"];
 const SESSIONS = ["Утро", "День"];
-const ZONES = ["A", "B", "C", "D", "E"];
+const ZONES = ["BOX1", "BOX2", "BOX3", "BOX4", "BOX5", "BOX6"];
 const SKU_GROUPS = ["GROCERY", "TECH", "FASHION", "SPORT", "HOME"];
 
 const MAP_LAYOUT = [
@@ -50,6 +50,10 @@ const state = {
     clustered: null,
     baseline: null,
   },
+  actualTimes: {
+    clustered: new Map(),
+    baseline: new Map(),
+  },
   activeScenario: SCENARIOS.clustered,
 };
 
@@ -62,27 +66,41 @@ function randInt(min, max) {
 }
 
 function generateBoxes() {
-  const count = randInt(40, 70);
+  const orderSize = randInt(25, 50);
   const boxes = [];
-  for (let i = 0; i < count; i += 1) {
+  const uniqueSkuCount = randInt(4, 9);
+  const skuDefs = [];
+  for (let i = 0; i < uniqueSkuCount; i += 1) {
     const skuGroup = randItem(SKU_GROUPS);
     const skuId = `${skuGroup}-${randInt(100, 999)}`;
-    const zoneCount = randInt(1, 3);
-    const zones = new Set();
-    while (zones.size < zoneCount) {
-      zones.add(randItem(ZONES));
-    }
+    const baseZoneIndex = randInt(0, ZONES.length - 1);
     const warehouse = randItem(WAREHOUSES);
     const session = randItem(SESSIONS);
-    const volume = randInt(1, 4);
+    skuDefs.push({ skuId, skuGroup, baseZoneIndex, warehouse, session });
+  }
+
+  for (let i = 0; i < orderSize; i += 1) {
+    const sku = randItem(skuDefs);
+    const zoneSpread = randInt(0, 1);
+    const zones = new Set();
+    const mainIndex = sku.baseZoneIndex;
+    zones.add(ZONES[mainIndex]);
+    if (zoneSpread > 0 && Math.random() < 0.6) {
+      const neighbor =
+        Math.random() < 0.5 ? mainIndex - 1 : mainIndex + 1;
+      if (neighbor >= 0 && neighbor < ZONES.length) {
+        zones.add(ZONES[neighbor]);
+      }
+    }
+    const volume = randInt(5, 42);
 
     boxes.push({
       id: `BOX-${i + 1}`,
-      skuGroup,
-      skuId,
+      skuGroup: sku.skuGroup,
+      skuId: sku.skuId,
       zones: Array.from(zones).sort(),
-      warehouse,
-      session,
+      warehouse: sku.warehouse,
+      session: sku.session,
       volume,
     });
   }
@@ -93,6 +111,8 @@ function generateBoxes() {
   state.scheduleBaseline = [];
   state.metrics.clustered = null;
   state.metrics.baseline = null;
+   state.actualTimes.clustered = new Map();
+   state.actualTimes.baseline = new Map();
   renderBoxes();
   renderTasks();
   renderCityMap();
@@ -164,23 +184,17 @@ function makeTask(id, boxes) {
 
 function assignBaseline() {
   const tasks = [];
-  const bySeg = groupByKey(
-    state.boxes,
-    (b) => `${b.warehouse}::${b.session}`
-  );
   let taskId = 1;
-  bySeg.forEach((boxes, seg) => {
-    const sorted = [...boxes].sort((a, b) =>
-      a.zones.join("").localeCompare(b.zones.join(""))
-    );
-    for (let i = 0; i < sorted.length; i += 5) {
-      const slice = sorted.slice(i, i + 5);
-      const task = makeTask(`B-${taskId}`, slice);
-      task.jaccardAvg = 0;
-      tasks.push(task);
-      taskId += 1;
-    }
-  });
+  const shuffled = [...state.boxes].sort(() => Math.random() - 0.5);
+  for (let i = 0; i < shuffled.length; ) {
+    const size = randInt(3, 8);
+    const slice = shuffled.slice(i, i + size);
+    const task = makeTask(`B-${taskId}`, slice);
+    task.jaccardAvg = 0;
+    tasks.push(task);
+    taskId += 1;
+    i += size;
+  }
   state.tasksBaseline = tasks;
 }
 
@@ -233,6 +247,8 @@ function renderTasks() {
       : state.tasksBaseline;
   tasksTableBody.innerHTML = "";
   tasks.forEach((task) => {
+    const actualMap = state.actualTimes[scenario];
+    const actual = actualMap.get(task.id);
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${task.id}</td>
@@ -245,6 +261,7 @@ function renderTasks() {
       <td>${task.warehouse} / ${task.session}</td>
       <td>${task.complexity.toFixed(1)}</td>
       <td>${task.eta.toFixed(1)}</td>
+      <td>${actual != null ? actual.toFixed(1) : "–"}</td>
     `;
     tasksTableBody.appendChild(tr);
   });
@@ -401,9 +418,29 @@ function renderKpi() {
   } else {
     kpiSimilarity.textContent = "Средний Jaccard: –";
   }
-  kpiPickers.textContent = `${Number(
-    pickersInput.value || 0
-  )} сборщиков`;
+  const totalByWh = {};
+  const coveredByWh = {};
+  state.boxes.forEach((b) => {
+    totalByWh[b.warehouse] = (totalByWh[b.warehouse] || 0) + 1;
+  });
+  const allTasks = state.tasksClustered.concat(state.tasksBaseline);
+  const coveredIds = new Set();
+  allTasks.forEach((t) => t.boxIds.forEach((id) => coveredIds.add(id)));
+  state.boxes.forEach((b) => {
+    if (coveredIds.has(b.id)) {
+      coveredByWh[b.warehouse] =
+        (coveredByWh[b.warehouse] || 0) + 1;
+    }
+  });
+  const covMsk1 = totalByWh["MSK-1"]
+    ? ((coveredByWh["MSK-1"] || 0) / totalByWh["MSK-1"]) * 100
+    : 0;
+  const covMsk2 = totalByWh["MSK-2"]
+    ? ((coveredByWh["MSK-2"] || 0) / totalByWh["MSK-2"]) * 100
+    : 0;
+  kpiPickers.textContent = `MSK-1: ${covMsk1.toFixed(
+    0
+  )}% · MSK-2: ${covMsk2.toFixed(0)}%`;
 }
 
 function assignTasks() {
@@ -418,11 +455,20 @@ function runShift() {
   const pickers = Math.max(1, Number(pickersInput.value) || 1);
   const clustered = simulateShift(state.tasksClustered, pickers);
   state.metrics.clustered = clustered;
+  state.actualTimes.clustered = new Map();
+  clustered.schedule.forEach((s) => {
+    state.actualTimes.clustered.set(s.taskId, s.end - s.start);
+  });
   if (compareModeInput.checked && state.tasksBaseline.length) {
     const baseline = simulateShift(state.tasksBaseline, pickers);
     state.metrics.baseline = baseline;
+    state.actualTimes.baseline = new Map();
+    baseline.schedule.forEach((s) => {
+      state.actualTimes.baseline.set(s.taskId, s.end - s.start);
+    });
   }
   renderKpi();
+  renderTasks();
   renderTimelines();
 }
 

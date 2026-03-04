@@ -23,10 +23,10 @@
         </div>
         <div class="controls">
           <button id="btnGenerate" class="btn primary">
-            Сгенерировать входящий поток
+            Получить задание на комплектовку
           </button>
           <button id="btnAssign" class="btn">
-            Назначить задания (кластеризация)
+            Сгенерировать задания на комплектовку
           </button>
           <div class="inline">
             <label for="pickers">Сборщиков</label>
@@ -43,7 +43,7 @@
       <main class="layout">
         <section class="panel">
           <div class="panel-header">
-            <h2>Коробки (входящий поток)</h2>
+            <h2>Коробки задания</h2>
             <div class="panel-sub" id="boxesSummary">0 коробок</div>
           </div>
           <div class="table-wrap">
@@ -52,10 +52,10 @@
                 <tr>
                   <th>Коробка</th>
                   <th>SKU</th>
-                  <th>Зоны</th>
+                  <th>Зоны BOX</th>
                   <th>Склад</th>
                   <th>Сессия</th>
-                  <th>Объём</th>
+                  <th>Лотков</th>
                 </tr>
               </thead>
               <tbody id="boxesTableBody"></tbody>
@@ -91,6 +91,7 @@
                   <th>Склад / Сессия</th>
                   <th>Сложность</th>
                   <th>ETA (мин)</th>
+                  <th>Факт (мин)</th>
                 </tr>
               </thead>
               <tbody id="tasksTableBody"></tbody>
