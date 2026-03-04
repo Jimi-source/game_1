@@ -401,6 +401,20 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
     const oneChunkMode = countTarget != null && countTarget > 0 && effectiveCount === 1;
     const strictChunkCount = countTarget != null && countTarget > 0;
 
+    const segmentCellIds = new Set();
+    segBoxes.forEach((b) => {
+      if (Array.isArray(b.items)) {
+        b.items.forEach((item) => {
+          if (item.cellId) segmentCellIds.add(item.cellId);
+        });
+      }
+    });
+    const totalCellsInSegment = segmentCellIds.size;
+    const targetCellsPerTask = Math.max(
+      1,
+      Math.round(totalCellsInSegment / effectiveCount)
+    );
+
     let tasksCreatedThisSegment = 0;
     while (unassigned.size > 0) {
       let cluster;
@@ -412,6 +426,12 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
         unassigned.delete(seed);
         cluster = [seed];
         const clusterZones = new Set(seed.zones);
+        const clusterCellIds = new Set();
+        if (Array.isArray(seed.items)) {
+          seed.items.forEach((item) => {
+            if (item.cellId) clusterCellIds.add(item.cellId);
+          });
+        }
         const zoneTrayCounts = new Map();
         if (Array.isArray(seed.items)) {
           seed.items.forEach((item) => {
@@ -425,6 +445,7 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
         for (const box of cand) {
           if (cluster.length >= maxBoxes) break;
           if (volumeCap && clusterVol >= volumeCap) break;
+          if (clusterCellIds.size >= targetCellsPerTask) break;
           const boxZones = new Set(box.zones);
           const simZones = jaccard(clusterZones, boxZones);
           if (!oneChunkMode && simZones < 0.4) continue;
@@ -457,6 +478,11 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
           cluster.push(box);
           clusterVol += box.volume;
           box.zones.forEach((z) => clusterZones.add(z));
+          if (Array.isArray(box.items)) {
+            box.items.forEach((item) => {
+              if (item.cellId) clusterCellIds.add(item.cellId);
+            });
+          }
           unassigned.delete(box);
         }
       }
