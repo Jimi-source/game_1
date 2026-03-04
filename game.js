@@ -355,48 +355,26 @@ function assignClustered() {
   const chunksPerSegment = [];
   if (countTarget && totalBoxes > 0) {
     const segSizes = segments.map(([, boxes]) => boxes.length);
-    const segKeys = segments.map(([key]) => key);
-    const warehouses = [...new Set(segKeys.map((k) => k.split("::")[0]))];
-    const totalChunks = Math.max(countTarget, warehouses.length);
-    const whBoxCount = {};
-    segments.forEach(([, boxes], i) => {
-      const wh = segKeys[i].split("::")[0];
-      whBoxCount[wh] = (whBoxCount[wh] || 0) + boxes.length;
-    });
-    const totalByWh = Object.values(whBoxCount).reduce((a, b) => a + b, 0);
-    const chunksPerWh = {};
-    warehouses.forEach((wh) => {
-      chunksPerWh[wh] = 1;
-    });
-    let remaining = totalChunks - warehouses.length;
-    if (remaining > 0 && totalByWh > 0) {
-      warehouses.forEach((wh) => {
-        const add = Math.round((remaining * (whBoxCount[wh] || 0)) / totalByWh);
-        chunksPerWh[wh] += add;
+    const totalSegs = segments.length;
+    const total = segSizes.reduce((a, b) => a + b, 0);
+    const totalChunks = Math.max(countTarget, totalSegs);
+    const remaining = totalChunks - totalSegs;
+    if (remaining <= 0) {
+      segments.forEach(() => chunksPerSegment.push(1));
+    } else {
+      let sum = 0;
+      segSizes.forEach((size, i) => {
+        const extra = i < totalSegs - 1
+          ? Math.round((remaining * size) / total)
+          : remaining - sum;
+        chunksPerSegment.push(1 + Math.max(0, extra));
+        sum += Math.max(0, extra);
       });
-      const whSum = warehouses.reduce((s, wh) => s + chunksPerWh[wh], 0);
-      if (whSum !== totalChunks) {
-        chunksPerWh[warehouses[0]] = (chunksPerWh[warehouses[0]] || 0) + totalChunks - whSum;
+      let s = chunksPerSegment.reduce((a, b) => a + b, 0);
+      if (s !== totalChunks && chunksPerSegment.length > 0) {
+        const idx = chunksPerSegment.indexOf(Math.max(...chunksPerSegment));
+        chunksPerSegment[idx] = Math.max(1, chunksPerSegment[idx] + totalChunks - s);
       }
-    }
-    segments.forEach(([, boxes], i) => {
-      const wh = segKeys[i].split("::")[0];
-      const whSegs = segKeys
-        .map((k, idx) => (k.split("::")[0] === wh ? idx : -1))
-        .filter((idx) => idx >= 0);
-      const whSegSizes = whSegs.map((idx) => segSizes[idx]);
-      const whSegTotal = whSegSizes.reduce((a, b) => a + b, 0);
-      const whChunks = chunksPerWh[wh] || 0;
-      const c =
-        whSegTotal > 0
-          ? Math.round((whChunks * boxes.length) / whSegTotal)
-          : 0;
-      chunksPerSegment.push(Math.max(0, c));
-    });
-    let sum = chunksPerSegment.reduce((a, b) => a + b, 0);
-    if (sum !== totalChunks && chunksPerSegment.length > 0) {
-      const idx = chunksPerSegment.indexOf(Math.max(...chunksPerSegment));
-      chunksPerSegment[idx] = Math.max(0, chunksPerSegment[idx] + totalChunks - sum);
     }
   }
 
@@ -572,6 +550,7 @@ function openAssignModal() {
       </td>
       <td>${task.id}</td>
       <td>${task.warehouse}</td>
+      <td>${task.session}</td>
       <td>${task.boxIds.length}</td>
       <td>${totalVolume}</td>
       <td>${cellIds.size}</td>
