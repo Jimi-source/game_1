@@ -80,22 +80,35 @@ function randInt(min, max) {
 function generateBoxes() {
   const orderSize = randInt(2000, 3000);
   const boxes = [];
-  const uniqueSkuCount = randInt(4, 9);
+  const uniqueSkuCount = randInt(4, Math.min(6, ZONES.length));
   const skuDefs = [];
   for (let i = 0; i < uniqueSkuCount; i += 1) {
     const skuGroup = randItem(SKU_GROUPS);
     const skuId = `${skuGroup}-${randInt(100, 999)}`;
-    const baseZoneIndex = randInt(0, ZONES.length - 1);
+    const baseZoneIndex = i;
     skuDefs.push({ skuId, skuGroup, baseZoneIndex });
   }
 
   const ratioMsk1 = 0.4 + Math.random() * 0.2; // 40–60%
+  let prevSkuIndex = -1;
 
   for (let i = 0; i < orderSize; i += 1) {
-    const sku = randItem(skuDefs);
-    const zones = new Set();
-    const mainIndex = sku.baseZoneIndex;
-    zones.add(ZONES[mainIndex]); // 1 коробка = 1 BOX
+    let sku;
+    const repeatSame = Math.random() < 0.05 && prevSkuIndex >= 0;
+    if (repeatSame) {
+      sku = skuDefs[prevSkuIndex];
+    } else {
+      const otherIndices = skuDefs
+        .map((_, idx) => idx)
+        .filter((idx) => idx !== prevSkuIndex);
+      const idx =
+        otherIndices.length > 0
+          ? otherIndices[Math.floor(Math.random() * otherIndices.length)]
+          : Math.floor(Math.random() * skuDefs.length);
+      prevSkuIndex = idx;
+      sku = skuDefs[idx];
+    }
+    const zones = [ZONES[sku.baseZoneIndex]];
     const volume = randInt(5, 14);
     const warehouse = Math.random() < ratioMsk1 ? "MSK-1" : "MSK-2";
     const session = randItem(SESSIONS);
@@ -104,7 +117,7 @@ function generateBoxes() {
       id: `BOX-${i + 1}`,
       skuGroup: sku.skuGroup,
       skuId: sku.skuId,
-      zones: Array.from(zones).sort(),
+      zones,
       warehouse,
       session,
       volume,
