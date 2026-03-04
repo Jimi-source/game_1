@@ -332,6 +332,7 @@ function renderTasks() {
       <td>${task.id}</td>
       <td>${task.boxIds.length}</td>
       <td>${task.skuCount}</td>
+      <td>${task.zones.length}</td>
       <td>${task.jaccardAvg ? task.jaccardAvg.toFixed(2) : "–"}</td>
       <td>${task.warehouse} / ${task.session}</td>
       <td>${task.complexity.toFixed(1)}</td>
