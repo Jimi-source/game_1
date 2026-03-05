@@ -12,9 +12,8 @@ const segmentBarMsk1 = document.getElementById("segmentBarMsk1");
 const segmentBarMsk2 = document.getElementById("segmentBarMsk2");
 const segmentValueMsk1 = document.getElementById("segmentValueMsk1");
 const segmentValueMsk2 = document.getElementById("segmentValueMsk2");
-const chunkBoxesInput = document.getElementById("chunkBoxes");
-const chunkVolumeInput = document.getElementById("chunkVolume");
 const chunkCountInput = document.getElementById("chunkCount");
+const chunkCellsInput = document.getElementById("chunkCells");
 const btnPlan = document.getElementById("btnPlan");
 const zonesModal = document.getElementById("zonesModal");
 const zonesModalClose = document.getElementById("zonesModalClose");
@@ -386,22 +385,26 @@ function makeTask(id, boxes) {
 }
 
 function getChunkSettings() {
-  const boxes = Number(chunkBoxesInput?.value);
-  const volume = Number(chunkVolumeInput?.value);
   const count = parseInt(chunkCountInput?.value, 10);
+  const cells = Number(chunkCellsInput?.value);
   return {
-    boxesTarget: Number.isFinite(boxes) && boxes > 0 ? boxes : null,
-    volumeTarget: Number.isFinite(volume) && volume > 0 ? volume : null,
     countTarget: !Number.isNaN(count) && count > 0 ? count : null,
+    cellsTarget: Number.isFinite(cells) && cells > 0 ? cells : null,
   };
 }
 
 /**
- * Кол-во чанков (countTarget):
+ * Кол-во заданий на 1 сегмент (countTarget):
  * - N заданий НА КАЖДЫЙ из 4 сегментов (MSK-1 Утро, MSK-1 День, MSK-2 Утро, MSK-2 День).
- * - 1 чанк → 4 задания всего; 2 чанка → 8 заданий; 3 чанка → 12 заданий; всего = 4 × N.
- * - При заданном N: распределение коробок по заданиям — баланс по ящикам (примерно одинаковое кол-во уникальных ячеек в каждом задании).
- * - Если поле пустое: оптимальное число заданий по объёму сегмента (≈ лотков_сегмента / 240).
+ * - 1 → 4 задания всего; 2 → 8 заданий; 3 → 12 заданий; всего = 4 × N.
+ * - При заданном N: строгий режим; распределение коробок по заданиям — баланс по ячейкам
+ *   (примерно одинаковое кол-во уникальных ячеек в каждом задании).
+ *
+ * Кол-во ячеек в чанке для 1 сегмента (cellsTarget):
+ * - Используется, когда поле «Кол-во заданий на 1 сегмент» пустое.
+ * - Задаёт целевое число уникальных ячеек в одном задании; по нему считается число заданий
+ *   для каждого сегмента.
+ * - Если cellsTarget не задано, число заданий считается по объёму (лоткам) сегмента.
  */
 
 function assignClustered(boxesToCluster, startTaskId = 1) {
@@ -411,7 +414,7 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
     boxes,
     (b) => `${b.warehouse}::${b.session}`
   );
-  const { boxesTarget, volumeTarget, countTarget } = getChunkSettings();
+  const { countTarget, cellsTarget } = getChunkSettings();
   const MAX_TRAYS_PER_TASK = 6 * 40;
 
   const useFixedSegments = countTarget != null && countTarget > 0;
@@ -424,10 +427,29 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
     segments.forEach(() => chunksPerSegment.push(countTarget));
   } else {
     segments.forEach(([, segBoxes]) => {
-      const segmentVolume = segBoxes.reduce((sum, b) => sum + b.volume, 0);
-      chunksPerSegment.push(
-        Math.max(1, Math.ceil(segmentVolume / MAX_TRAYS_PER_TASK))
-      );
+      if (!segBoxes || segBoxes.length === 0) {
+        chunksPerSegment.push(0);
+        return;
+      }
+      if (cellsTarget) {
+        const segmentCellIds = new Set();
+        segBoxes.forEach((b) => {
+          if (Array.isArray(b.items)) {
+            b.items.forEach((item) => {
+              if (item.cellId) segmentCellIds.add(item.cellId);
+            });
+          }
+        });
+        const totalCells = Math.max(1, segmentCellIds.size);
+        chunksPerSegment.push(
+          Math.max(1, Math.ceil(totalCells / cellsTarget))
+        );
+      } else {
+        const segmentVolume = segBoxes.reduce((sum, b) => sum + b.volume, 0);
+        chunksPerSegment.push(
+          Math.max(1, Math.ceil(segmentVolume / MAX_TRAYS_PER_TASK))
+        );
+      }
     });
   }
 
@@ -435,18 +457,10 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
   segments.forEach(([, segBoxes], segIndex) => {
     if (segBoxes.length === 0) return;
     const totalBoxesSeg = segBoxes.length;
-    const totalVolumeSeg = segBoxes.reduce((sum, b) => sum + b.volume, 0);
     const effectiveCount = chunksPerSegment[segIndex] ?? 1;
     if (effectiveCount <= 0) return;
     const unassigned = new Set(segBoxes);
     let maxBoxes = Math.max(3, Math.round(totalBoxesSeg / effectiveCount));
-    if (boxesTarget) maxBoxes = Math.max(3, boxesTarget);
-    const volumeCap = volumeTarget
-      ? Math.max(
-          volumeTarget,
-          Math.round(totalVolumeSeg / Math.max(1, effectiveCount || 1))
-        )
-      : null;
     const oneChunkMode = countTarget != null && countTarget > 0 && effectiveCount === 1;
     const strictChunkCount = countTarget != null && countTarget > 0;
 
@@ -510,11 +524,11 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
         });
       }
     });
-    const totalCellsInSegment = segmentCellIds.size;
-    const targetCellsPerTask = Math.max(
-      1,
-      Math.round(totalCellsInSegment / effectiveCount)
-    );
+    const totalCellsInSegment = Math.max(1, segmentCellIds.size);
+    const targetCellsPerTask =
+      cellsTarget && !strictChunkCount
+        ? cellsTarget
+        : Math.max(1, Math.round(totalCellsInSegment / effectiveCount));
 
     let tasksCreatedThisSegment = 0;
     while (unassigned.size > 0) {
@@ -540,12 +554,10 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
             zoneTrayCounts.set(item.zone, prev + 1);
           });
         }
-        let clusterVol = seed.volume;
         const cand = Array.from(unassigned);
         cand.sort((a, b) => b.zones.length - a.zones.length);
         for (const box of cand) {
           if (cluster.length >= maxBoxes) break;
-          if (volumeCap && clusterVol >= volumeCap) break;
           if (clusterCellIds.size >= targetCellsPerTask) break;
           const boxZones = new Set(box.zones);
           const simZones = jaccard(clusterZones, boxZones);
@@ -575,7 +587,6 @@ function assignClustered(boxesToCluster, startTaskId = 1) {
             });
           }
           cluster.push(box);
-          clusterVol += box.volume;
           box.zones.forEach((z) => clusterZones.add(z));
           if (Array.isArray(box.items)) {
             box.items.forEach((item) => {
