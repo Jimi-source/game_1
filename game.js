@@ -6,7 +6,6 @@ const btnAcceptTrays = document.getElementById("btnAcceptTrays");
 const btnShowZones = document.getElementById("btnShowZones");
 const btnAssign = document.getElementById("btnAssign");
 const btnRun = document.getElementById("btnRun");
-const pickersInput = document.getElementById("pickers");
 const cityMap = document.getElementById("cityMap");
 const segmentBarMsk1 = document.getElementById("segmentBarMsk1");
 const segmentBarMsk2 = document.getElementById("segmentBarMsk2");
@@ -69,6 +68,14 @@ function randItem(arr) {
 
 function randInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 function generateBoxes() {
@@ -283,8 +290,54 @@ function getZoneDistribution() {
 
 function acceptTrays() {
   if (!state.boxes.length) return;
+
+  // Каждый клик «Принять лотки» — рандомное распределение лотков по ячейкам,
+  // при сохранении правила: ячейки создаются по зонам, в каждой ячейке ≤ 40 лотков.
+  const MAX_TRAYS_PER_CELL = 40;
+  const traysByZone = groupByKey(state.trays, (t) => t.zone);
+  const nextCells = [];
+  const trayIdToCellId = new Map();
+
+  ZONES.forEach((zone) => {
+    const trays = traysByZone.get(zone) || [];
+    const shuffled = shuffleInPlace([...trays]);
+    let cellIndex = 1;
+    for (let i = 0; i < shuffled.length; i += MAX_TRAYS_PER_CELL) {
+      const cell = { id: `CELL-${zone}-${cellIndex}`, zone, trayIds: [] };
+      cellIndex += 1;
+      shuffled.slice(i, i + MAX_TRAYS_PER_CELL).forEach((tray) => {
+        cell.trayIds.push(tray.trayId);
+        tray.cellId = cell.id;
+        trayIdToCellId.set(tray.trayId, cell.id);
+      });
+      nextCells.push(cell);
+    }
+  });
+
+  state.boxCells = nextCells;
+
+  // Обновляем cellId в коробках (items держат cellId, а не ссылку на tray)
+  state.boxes.forEach((box) => {
+    if (!Array.isArray(box.items)) return;
+    box.items.forEach((item) => {
+      const newCellId = trayIdToCellId.get(item.trayId);
+      if (newCellId) item.cellId = newCellId;
+    });
+  });
+
   state.zoneDistribution = getZoneDistribution();
   state.traysAccepted = true;
+
+  // Если задания уже были сгенерированы/назначены — сбрасываем, потому что изменились ячейки
+  state.tasksClustered = [];
+  state.metrics.clustered = null;
+  state.actualTimes.clustered = new Map();
+  state.assigned = new Set();
+
+  renderTasks();
+  renderSegmentBars();
+  renderKpi();
+  renderTimelines();
   updateAssignButtonState();
 }
 
@@ -400,7 +453,7 @@ function getChunkSettings() {
  * - При заданном N: строгий режим; распределение коробок по заданиям — баланс по ячейкам
  *   (примерно одинаковое кол-во уникальных ячеек в каждом задании).
  *
- * Кол-во ячеек в чанке для 1 сегмента (cellsTarget):
+ * Кол-во ящиков в загрузке (cellsTarget):
  * - Используется, когда поле «Кол-во заданий на 1 сегмент» пустое.
  * - Задаёт целевое число уникальных ячеек в одном задании; по нему считается число заданий
  *   для каждого сегмента.
@@ -810,6 +863,7 @@ function renderTimelineForScenario(schedule, makespan, container) {
 }
 
 function renderTimelines() {
+  if (!timelineBarsClustered) return;
   const m = state.metrics.clustered;
   timelineBarsClustered.innerHTML = "";
   if (m && m.schedule && m.schedule.length) {
@@ -821,23 +875,23 @@ function renderKpi() {
   const m = state.metrics.clustered;
   const assignedTasks = state.tasksClustered.filter((t) => state.assigned.has(t.id));
   if (m) {
-    kpiTimeClustered.textContent = `${m.makespan.toFixed(1)} мин`;
-    kpiTasksClustered.textContent = `${assignedTasks.length} заданий`;
-    kpiUtilization.textContent = `${m.utilization.toFixed(0)} %`;
+    if (kpiTimeClustered) kpiTimeClustered.textContent = `${m.makespan.toFixed(1)} мин`;
+    if (kpiTasksClustered) kpiTasksClustered.textContent = `${assignedTasks.length} заданий`;
+    if (kpiUtilization) kpiUtilization.textContent = `${m.utilization.toFixed(0)} %`;
   } else {
-    kpiTimeClustered.textContent = "–";
-    kpiTasksClustered.textContent = `${assignedTasks.length} заданий`;
-    kpiUtilization.textContent = "–";
+    if (kpiTimeClustered) kpiTimeClustered.textContent = "–";
+    if (kpiTasksClustered) kpiTasksClustered.textContent = `${assignedTasks.length} заданий`;
+    if (kpiUtilization) kpiUtilization.textContent = "–";
   }
   if (assignedTasks.length) {
     const avgJ =
       assignedTasks.reduce((sum, t) => sum + (t.jaccardAvg || 0), 0) /
       assignedTasks.length;
-    kpiSimilarity.textContent = avgJ.toFixed(2);
-    kpiPickers.textContent = "назначено";
+    if (kpiSimilarity) kpiSimilarity.textContent = avgJ.toFixed(2);
+    if (kpiPickers) kpiPickers.textContent = "назначено";
   } else {
-    kpiSimilarity.textContent = "–";
-    kpiPickers.textContent = "—";
+    if (kpiSimilarity) kpiSimilarity.textContent = "–";
+    if (kpiPickers) kpiPickers.textContent = "—";
   }
 }
 
@@ -876,7 +930,7 @@ function assignTasks() {
 function runShift() {
   const assignedTasks = state.tasksClustered.filter((t) => state.assigned.has(t.id));
   if (!assignedTasks.length) return;
-  const pickers = Math.max(1, Number(pickersInput.value) || 1);
+  const pickers = 4;
   const result = simulateShift(assignedTasks, pickers);
   state.metrics.clustered = result;
   state.actualTimes.clustered = new Map();
@@ -929,10 +983,26 @@ assignTasksBody.addEventListener("click", (event) => {
   renderKpi();
 });
 
-pickersInput.addEventListener("change", () => {
-  renderKpi();
-  renderTimelines();
+document.addEventListener("mousedown", (e) => {
+  const btn = e.target.closest("button.btn");
+  if (btn && !btn.disabled) btn.classList.add("btn--pressed");
 });
+document.addEventListener("mouseup", () => {
+  document.querySelectorAll("button.btn--pressed").forEach((b) => b.classList.remove("btn--pressed"));
+});
+document.addEventListener("mouseleave", () => {
+  document.querySelectorAll("button.btn--pressed").forEach((b) => b.classList.remove("btn--pressed"));
+});
+document.addEventListener("touchstart", (e) => {
+  const btn = e.target.closest("button.btn");
+  if (btn && !btn.disabled) btn.classList.add("btn--pressed");
+}, { passive: true });
+document.addEventListener("touchend", () => {
+  document.querySelectorAll("button.btn--pressed").forEach((b) => b.classList.remove("btn--pressed"));
+}, { passive: true });
+document.addEventListener("touchcancel", () => {
+  document.querySelectorAll("button.btn--pressed").forEach((b) => b.classList.remove("btn--pressed"));
+}, { passive: true });
 
 if (cityMap) renderCityMap();
 renderSegmentBars();

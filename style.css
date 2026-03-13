@@ -184,6 +184,7 @@ body {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+  padding-bottom: 2px; /* место под эффект нажатия кнопок */
 }
 
 .btn {
@@ -194,6 +195,18 @@ body {
   padding: 8px 12px;
   font-size: 13px;
   cursor: pointer;
+  transition: background-color 0.1s ease-out, filter 0.1s ease-out;
+}
+
+/* Эффект нажатия — кнопка уходит вниз и «вдавливается» */
+button.btn:not(:disabled):active,
+button.btn:not(:disabled).btn--pressed {
+  filter: brightness(0.82) saturate(1.1) !important;
+}
+
+.btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 .btn.primary {
@@ -203,6 +216,11 @@ body {
   font-weight: 600;
 }
 
+.btn.primary:not(:disabled):active {
+  background: #1d4ed8;
+  border-color: #1e40af;
+}
+
 .btn.success {
   background: #16a34a;
   border-color: #15803d;
@@ -210,9 +228,23 @@ body {
   font-weight: 600;
 }
 
+.btn.success:not(:disabled):active {
+  background: #15803d;
+  border-color: #166534;
+}
+
 .btn.outlined {
   background: #ffffff;
   border-color: #d1d5db;
+}
+
+.btn.outlined:not(:disabled):active {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.btn:not(:disabled):active {
+  background: #d1d5db;
 }
 
 .btn:disabled {
